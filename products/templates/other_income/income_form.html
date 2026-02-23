@@ -1,0 +1,88 @@
+{% extends 'index.html' %}
+{% block title %}{% if expense %}Update Income{% else %}Add Income{% endif %}{% endblock %}
+
+{% block content %}
+<div class="text m-3">
+    <a href="{% url 'dashboard' %}" style="text-decoration: none; color: #6e6e6e;"><b> Dashboard</b></a>
+     / 
+    <a href="{% url 'income_list' %}" style="text-decoration: none; color: #6e6e6e;"><b>Income List</b> </a>
+      / 
+    <span style="color: #39a5b8;"><b>{% if expense %}Income Update{% else %}Income Create{% endif %}</b></span>
+
+<div class="d-flex justify-content-between align-items-center mt-2">
+    <h3>{% if expense %}Update Income{% else %}Create Income{% endif %}</h3>
+    <a href="{% url 'income_list' %}" class="btn btn-outline-secondary">Back</a>
+</div>
+</div>
+
+<div class="container mt-4">
+    <div class="card shadow-sm">
+        <div class="card-body">
+            <h4>Income Details</h4>
+            <p>Enter income information below</p>
+            <hr>
+
+            <!-- ALERT MESSAGE -->
+            {% if messages %}
+                {% for message in messages %}
+                    <div class="alert alert-success alert-dismissible fade show">
+                        {{ message }}
+                        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                    </div>
+                {% endfor %}
+            {% endif %}
+
+            <form method="post">
+                {% csrf_token %}
+
+                <!-- Income Category -->
+                <div class="mb-3">
+                    <label for="id_category" class="form-label">Income Category <span class="text-danger">*</span></label>
+                    <select name="category" id="id_category" class="form-select" required>
+                        <option value="" disabled>Select category</option>
+                        {% for cat in categories %}
+                            <option value="{{ cat.id }}" {% if expense and expense.category.id == cat.id %}selected{% endif %}>{{ cat.name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <!-- Fund -->
+                <div class="mb-3">
+                    <label for="id_fund" class="form-label">Fund <span class="text-danger">*</span></label>
+                    <select name="fund" id="id_fund" class="form-select" required>
+                        <option value="" disabled>Select fund</option>
+                        {% for f in funds %}
+                            <option value="{{ f.id }}" {% if expense and expense.fund.id == f.id %}selected{% endif %}>{{ f.fund_name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <!-- Amount -->
+                <div class="mb-3">
+                    <label for="id_amount" class="form-label">Amount <span class="text-danger">*</span></label>
+                    <input type="number" name="amount" id="id_amount" class="form-control" step="0.01" min="0" placeholder="e.g. 1500.00"
+                        value="{% if expense %}{{ expense.amount }}{% endif %}" required>
+                </div>
+
+                <!-- Date -->
+                <div class="mb-3">
+                    <label for="id_date" class="form-label">Date <span class="text-danger">*</span></label>
+                    <input type="date" name="date" id="id_date" class="form-control"
+                        value="{% if expense %}{{ expense.date }}{% endif %}" required>
+                </div>
+
+                <!-- Note -->
+                <div class="mb-3">
+                    <label for="id_note" class="form-label">Note</label>
+                    <textarea name="note" id="id_note" class="form-control" placeholder="Enter note (optional)">{% if expense %}{{ expense.note }}{% endif %}</textarea>
+                </div>
+
+                <button type="submit" class="btn btn-primary">
+                    {% if expense %} Update Income{% else %} Save Income{% endif %}
+                </button>
+                <a href="{% url 'income_list' %}" class="btn btn-secondary">Cancel</a>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

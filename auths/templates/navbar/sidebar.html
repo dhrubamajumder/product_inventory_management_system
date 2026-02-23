@@ -1,0 +1,327 @@
+{% load static %}
+
+
+    <aside class="app-sidebar bg-body-secondary shadow" data-bs-theme="dark">
+        <div class="sidebar-brand">
+            <a href="#" class="brand-link text-white"> POS
+                <span class="brand-text fw-light">Inventory</span>
+            </a>
+        </div>
+
+      <div class="sidebar-wrapper">
+        <nav class="mt-2">
+
+            <!-------------------------------     Dashboard   ---------------------------------->
+            <ul class="nav sidebar-menu flex-column" data-lte-toggle="treeview" role="navigation" aria-label="Main navigation" data-accordion="false" id="navigation">
+                <li class="nav-item">
+                    <a href="{% url 'dashboard' %}" class="nav-link"><i class="nav-icon bi bi-speedometer"></i><p>Dashboard</p></a>
+                </li>
+                
+                <!-------------------------------     Collect Order   ---------------------------------->
+
+                {% with request.resolver_match.url_name as url_name %}
+                <li class="nav-item {% if url_name == 'order_list' or url_name == 'pending_orders' %} menu-open {% endif %}">
+                    <a href="#" class="nav-link {% if url_name == 'order_list' or url_name == 'pending_orders' %} active bg-primary {% endif %}">
+                        <i class="nav-icon bi bi-speedometer"></i>
+                        <p>
+                            Collect Order
+                            <i class="nav-arrow bi bi-chevron-right"></i>
+                        </p>
+                    </a>
+
+                    <ul class="nav nav-treeview">
+
+                        <li class="nav-item">
+                            <a href="{% url 'order_list' %}"
+                            class="nav-link {% if url_name == 'order_list' %}active bg-white text-dark{% endif %}">
+                                <i class="nav-icon bi bi-circle"></i>
+                                <p>Collect Order</p>
+                            </a>
+                        </li>
+
+                        <li class="nav-item">
+                            <a href="{% url 'pending_orders' %}"
+                            class="nav-link {% if url_name == 'pending_orders' %}active bg-white text-dark{% endif %}">
+                                <i class="nav-icon bi bi-circle"></i>
+                                <p>Pending Orders</p>
+                            </a>
+                        </li>
+
+                    </ul>
+                </li>
+                {% endwith %}
+
+
+                <!------------------------------------ Purchase ---------------------->
+                
+                {% with request.resolver_match.url_name as url_name %}
+                <li class="nav-item {% if url_name == 'purchase_list' or url_name == 'purchase_return_list' %} menu-open {% endif %}">
+                    <a href="#" class="nav-link {% if url_name == 'purchase_list' or url_name == 'purchase_return_list' %} active bg-primary {% endif %}">
+                        <i class="nav-icon bi bi-clipboard-fill"></i>
+                        <p>
+                            Purchase
+                            <i class="nav-arrow bi bi-chevron-right"></i>
+                        </p>
+                    </a>
+
+                    <ul class="nav nav-treeview">
+
+                        <li class="nav-item">
+                            <a href="{% url 'purchase_list' %}"
+                            class="nav-link {% if url_name == 'purchase_list' %}active bg-white text-dark{% endif %}">
+                                <i class="nav-icon bi bi-circle"></i>
+                                <p>Purchase Invoice</p>
+                            </a>
+                        </li>
+
+                        <li class="nav-item">
+                            <a href="{% url 'purchase_return_list' %}"
+                            class="nav-link {% if url_name == 'purchase_return_list' %}active bg-white text-dark{% endif %}">
+                                <i class="nav-icon bi bi-circle"></i>
+                                <p>Purchase Return</p>
+                            </a>
+                        </li>
+
+                    </ul>
+                </li>
+                {% endwith %}
+                                
+
+                <!------------------------------------ Finance ---------------------->
+                
+                {% with request.resolver_match.url_name as url_name %}
+                <li class="nav-item {% if url_name == 'expense_list' or url_name == 'income_list' or url_name == 'supplier_payment_list' or url_name == 'customer_payment_list' or url_name == 'fund_transfer_list' %} menu-open {% endif %}">
+
+                <a href="#" class="nav-link {% if url_name == 'expense_list' or url_name == 'income_list' or url_name == 'supplier_payment_list' or url_name == 'customer_payment_list' or url_name == 'fund_transfer_list' %} active bg-primary {% endif %}">
+                    
+                        <i class="nav-icon bi bi-clipboard-fill"></i>
+                        <p>
+                            Finance
+                            <i class="nav-arrow bi bi-chevron-right"></i>
+                        </p>
+                    </a>
+
+                    <ul class="nav nav-treeview">
+
+                        <li class="nav-item">
+                            <a href="{% url 'expense_list' %}"
+                            class="nav-link {% if url_name == 'expense_list' %}active bg-white text-dark{% endif %}">
+                                <i class="nav-icon bi bi-circle"></i>
+                                <p>Expense</p>
+                            </a>
+                        </li>
+
+                        <li class="nav-item">
+                            <a href="{% url 'income_list' %}"
+                            class="nav-link {% if url_name == 'income_list' %}active bg-white text-dark{% endif %}">
+                                <i class="nav-icon bi bi-circle"></i>
+                                <p>Other Income</p>
+                            </a>
+                        </li>
+
+                        <li class="nav-item">
+                            <a href="{% url 'supplier_payment_list' %}"
+                            class="nav-link {% if url_name == 'supplier_payment_list' %}active bg-white text-dark{% endif %}">
+                                <i class="nav-icon bi bi-circle"></i>
+                                <p>Supplier Payments</p>
+                            </a>
+                        </li>
+
+                        <li class="nav-item">
+                            <a href="{% url 'customer_payment_list' %}"
+                            class="nav-link {% if url_name == 'customer_payment_list' %}active bg-white text-dark{% endif %}">
+                                <i class="nav-icon bi bi-circle"></i>
+                                <p>Customer Payments</p>
+                            </a>
+                        </li>
+
+                        <li class="nav-item">
+                            <a href="{% url 'fund_transfer_list' %}"
+                            class="nav-link {% if url_name == 'fund_transfer_list' %}active bg-white text-dark{% endif %}">
+                                <i class="nav-icon bi bi-circle"></i>
+                                <p>Fund Transfer</p>
+                            </a>
+                        </li>
+
+                    </ul>
+                </li>
+                {% endwith %}
+                
+<!-----------------------------------------------------   Reports    ---------------------->
+                
+
+                {% with request.resolver_match.url_name as url_name %}
+                <li class="nav-item {% if url_name == 'sales_report' or url_name == 'product_report' or url_name == 'purchase_report' %} menu-open {% endif %}">
+                    <a href="#" class="nav-link {% if url_name == 'sales_report' or url_name == 'product_report' or url_name == 'purchase_report' %} active bg-primary {% endif %}">
+                        <i class="nav-icon bi bi-clipboard-fill"></i>
+                        <p>
+                            Reports
+                            <i class="nav-arrow bi bi-chevron-right"></i>
+                        </p>
+                    </a>
+
+                    <ul class="nav nav-treeview">
+
+                        <li class="nav-item">
+                            <a href="{% url 'sales_report' %}"
+                            class="nav-link {% if url_name == 'sales_report' %}active bg-white text-dark{% endif %}">
+                                <i class="nav-icon bi bi-circle"></i>
+                                <p>Sales Reports</p>
+                            </a>
+                        </li>
+
+                        <li class="nav-item">
+                            <a href="#"
+                            class="nav-link {% if url_name == 'product_report' %}active bg-white text-dark{% endif %}">
+                                <i class="nav-icon bi bi-circle"></i>
+                                <p>Product Reports</p>
+                            </a>
+                        </li>
+
+                        <li class="nav-item">
+                            <a href="{% url 'purchase_report' %}"
+                            class="nav-link {% if url_name == 'purchase_report' %}active bg-white text-dark{% endif %}">
+                                <i class="nav-icon bi bi-circle"></i>
+                                <p>Purchase Reports</p>
+                            </a>
+                        </li>
+
+                    </ul>
+                </li>
+                {% endwith %}
+                <!------------------------------------ Product Settings ---------------------->
+                {% with request.resolver_match.url_name as url_name %}
+                <li class="nav-item {% if url_name in 'product_list category_list' %}menu-open{% endif %}">
+                    <a href="#" class="nav-link {% if url_name in 'product_list category_list' %}active bg-primary{% endif %}">
+                        <i class="bi bi-box-seam"></i>
+                        <p>
+                            Product Settings
+                            <i class="nav-arrow bi bi-chevron-right"></i>
+                        </p>
+                    </a>
+                    <ul class="nav nav-treeview">
+                        <li class="nav-item">
+                            <a href="{% url 'product_list' %}"
+                            class="nav-link {% if url_name == 'product_list' %}active bg-white text-dark{% endif %}">
+                                <i class="nav-icon bi bi-circle"></i>
+                                <p>Products</p>
+                            </a>
+                        </li>
+
+                        <li class="nav-item">
+                            <a href="{% url 'category_list' %}"
+                            class="nav-link {% if url_name == 'category_list' %}active bg-white text-dark{% endif %}">
+                                <i class="nav-icon bi bi-circle"></i>
+                                <p>Category</p>
+                            </a>
+                        </li>
+                    </ul>
+                </li>
+                {% endwith %}
+                
+<!-----------------------------------------------------   Basic Settings    ---------------------->
+
+                {% with request.resolver_match.url_name as url_name %}
+                <li class="nav-item {% if url_name in 'supplier customer expense_category income_category settings_list fund_list' %}menu-open{% endif %}">
+                    <a href="#" class="nav-link {% if url_name in 'supplier customer expense_category income_category settings_list fund_list' %}active bg-primary{% endif %}">
+                        <i class="bi bi-box-seam"></i>
+                        <p>
+                            Basic Settings
+                            <i class="nav-arrow bi bi-chevron-right"></i>
+                        </p>
+                    </a>
+                    <ul class="nav nav-treeview">
+                        <li class="nav-item">
+                            <a href="{% url 'supplier' %}"
+                            class="nav-link {% if url_name == 'supplier' %}active bg-white text-dark{% endif %}">
+                                <i class="nav-icon bi bi-circle"></i>
+                                <p>Supplier</p>
+                            </a>
+                        </li>
+
+                        <li class="nav-item">
+                            <a href="{% url 'customer' %}"
+                            class="nav-link {% if url_name == 'customer' %}active bg-white text-dark{% endif %}">
+                                <i class="nav-icon bi bi-circle"></i>
+                                <p>Customer</p>
+                            </a>
+                        </li>
+
+                        <li class="nav-item">
+                            <a href="{% url 'expense_category' %}"
+                            class="nav-link {% if url_name == 'expense_category' %}active bg-white text-dark{% endif %}">
+                                <i class="nav-icon bi bi-circle"></i>
+                                <p>Expense Category</p>
+                            </a>
+                        </li>
+
+                        <li class="nav-item">
+                            <a href="{% url 'income_category' %}"
+                            class="nav-link {% if url_name == 'income_category' %}active bg-white text-dark{% endif %}">
+                                <i class="nav-icon bi bi-circle"></i>
+                                <p>Income Category</p>
+                            </a>
+                        </li>
+
+                        <li class="nav-item">
+                            <a href="{% url 'fund_list' %}"
+                            class="nav-link {% if url_name == 'fund_list' %}active bg-white text-dark{% endif %}">
+                                <i class="nav-icon bi bi-circle"></i>
+                                <p>Fund</p>
+                            </a>
+                        </li>
+
+                        <li class="nav-item">
+                            <a href="{% url 'settings_list' %}"
+                            class="nav-link {% if url_name == 'settings_list' %}active bg-white text-dark{% endif %}">
+                                <i class="nav-icon bi bi-circle"></i>
+                                <p>Settings</p>
+                            </a>
+                        </li>
+                    </ul>
+                </li>
+                {% endwith %}
+
+
+
+
+ <!-------------------------------------------- Auth ----------------------------------->
+                <!-- <li class="nav-item">
+                    <a href="#" class="nav-link">
+                        <i class="nav-icon bi bi-box-arrow-in-right"></i>
+                        <p>
+                        Auth
+                        <i class="nav-arrow bi bi-chevron-right"></i>
+                        </p>
+                    </a>
+                    <ul class="nav nav-treeview">
+                        <li class="nav-item">
+                            <a href="#" class="nav-link">
+                                <i class="nav-icon bi bi-box-arrow-in-right"></i>
+                                <p>
+                                Version 1
+                                <i class="nav-arrow bi bi-chevron-right"></i>
+                                </p>
+                            </a>
+                            <ul class="nav nav-treeview">
+                                <li class="nav-item">
+                                    <a href="#" class="nav-link">
+                                        <i class="nav-icon bi bi-circle"></i>
+                                        <p>Login</p>
+                                    </a>
+                                </li>
+                                <li class="nav-item">
+                                    <a href="#" class="nav-link">
+                                        <i class="nav-icon bi bi-circle"></i>
+                                        <p>Register</p>
+                                    </a>
+                                </li>
+                            </ul>
+                        </li>
+                    </ul>
+                </li> -->
+
+            </ul>
+        </nav>
+      </div>
+    </aside>

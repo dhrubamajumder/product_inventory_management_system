@@ -1,0 +1,284 @@
+{% extends 'index.html' %}
+
+{% block content %}
+
+
+<style>
+    .product-card {
+        border: 1px solid #ddd;
+        padding: 10px;
+        text-align: center;
+        cursor: pointer;
+        background: #f8f9fa;
+    }
+    .product-card:hover {
+        background: #e9ecef;
+    }
+    .product-price {
+        font-weight: bold;
+        font-size: 16px;
+    }
+    .category-btn {
+        margin: 3px;
+    }
+</style>
+
+{% if messages %}
+    {% for message in messages %}
+        <div class="alert alert-danger">
+            {{ message }}
+        </div>
+    {% endfor %}
+{% endif %}
+
+<div class="container-fluid mt-3">
+    <div class="row">
+        <!-- LEFT SIDE -->
+        <div class="col-md-8 card shadow-sm p-3">
+            <!-- Categories -->
+            <div class="mb-3" id="category-area">
+                <button type="button" class="btn btn-secondary category-btn" data-id="all">All</button>
+                {% for category in categories %}
+                    <button type="button" class="btn btn-secondary category-btn" data-id="{{ category.id }}">
+                        {{ category.name }}
+                    </button>
+                {% endfor %}
+            </div>
+
+            <div class="row g-3" id="product-grid">
+                {% for product in products %}
+                    <div class="col-md-3 product-col">
+                        <div class="product-card"
+                            data-id="{{ product.id }}"
+                            data-name="{{ product.name }}"
+                            data-price="{{ product.price }}"
+                            data-category="{{ product.category.id }}">
+                            <div class="product-name">{{ product.name }}</div>
+                            <div class="product-price">{{ product.price }}</div>
+                        </div>
+                    </div>
+                {% endfor %}
+            </div>
+
+        </div>
+
+        <!-- RIGHT SIDE -->
+        <div class="col-md-4">
+            <div class="card">
+                <div class="card-header bg-success text-white">
+                    Invoice Summary 
+                </div>
+                <div class="card-body">
+                    <form method="POST" action="{% url 'create_order' %}" id="order-form" >
+                        {% csrf_token %}
+                        <div class="mb-2">
+                            <label class="form-label">Table :</label>
+                            <input type="text" name="table" class="form-control" placeholder="Enter Table">
+                        </div>
+
+                        <div class="mb-2">
+                            <label class="form-label">Order Type :</label>
+                            <select name="order_type" class="form-select">
+                                <option value="heaving">Heaving</option>
+                                <option value="parcel">Parcel</option>
+                            </select>
+                        </div>
+
+                        <!-- Order Table (dynamic) -->
+                        <table class="table table-bordered table-striped table-hover align-middle">
+                            <thead>
+                                <tr>
+                                    <th>#</th>
+                                    <th>Item</th>
+                                    <th>Qty</th>
+                                    <th>Rate</th>
+                                    <th>Amount</th>
+                                </tr>
+                            </thead>
+                            <tbody id="order-items">
+                            </tbody>
+                        </table>
+
+                        <input type="hidden" name="order_items" id="order-items-input">
+                        
+                        <div class="mb-2">
+                            <label>Grand Amount</label>
+                            <input type="text" name="grand_total" id="grand-amount" class="form-control" value="0" readonly>
+                        </div>
+
+                        <div class="row mb-2">
+                            <div class="col">
+                                <label>Discount (%)</label>
+                                <input type="number" name="discount" id="discount-amount" class="form-control" value="0" min="0" max="100">
+                            </div>
+                        </div>
+
+                        <div class="row mb-3">
+                            <div class="col">
+                                <label>Fund</label>
+                                <select name="fund" class="form-select">
+                                    <option value="cash">Cash</option>
+                                    <option value="bkash">Bkash</option>
+                                </select>
+                            </div>
+                            <div class="col">
+                                <label>Paid Amount</label>
+                                <input type="number" name="paid_amount" class="form-control" value="0">
+                            </div>
+                        </div>
+
+                        <button type="submit" class="btn btn-success w-100">Confirm Bill</button>
+                    </form>
+
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ----------------------------------------------------------------------------------------------->
+<!--------------------------------------------- javaScript ----------------------------------------->
+<!-- ----------------------------------------------------------------------------------------------->
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    console.log('order_list script loaded');
+
+    const productGrid = document.getElementById('product-grid');
+    const categoryArea = document.getElementById('category-area');
+    const orderTable = document.getElementById('order-items');
+    const grandAmountInput = document.getElementById('grand-amount');
+    const discountInput = document.getElementById('discount-amount');
+
+    if (!productGrid) console.warn('product-grid not found');
+    if (!categoryArea) console.warn('category-area not found');
+    if (!orderTable) console.warn('order-items tbody not found');
+    if (!grandAmountInput) console.warn('grand-amount input not found');
+    if (!discountInput) console.warn('discount-amount input not found');
+
+    function updateGrandTotal() {
+        if (!orderTable || !discountInput || !grandAmountInput) return;
+        let total = 0;
+        orderTable.querySelectorAll('tr').forEach(row => {
+            const amtEl = row.querySelector('.amount');
+            const amount = amtEl ? parseFloat(amtEl.innerText) || 0 : 0;
+            total += amount;
+        });
+        const discountPercent = parseFloat(discountInput.value) || 0;
+        grandAmountInput.value = (total * (1 - discountPercent / 100)).toFixed(2);
+    }
+
+    if (categoryArea) {
+        categoryArea.addEventListener('click', function(e){
+            const btn = e.target.closest('.category-btn');
+            if(!btn) return;
+            const catId = btn.dataset.id;
+            document.querySelectorAll('#product-grid .product-col').forEach(col => {
+                const card = col.querySelector('.product-card');
+                if(!card) return;
+                if(catId === 'all' || card.dataset.category === catId){
+                    col.style.display = '';
+                } else {
+                    col.style.display = 'none';
+                }
+            });
+        });
+    }
+
+    if (productGrid) {
+        productGrid.addEventListener('click', function(e){
+            const card = e.target.closest('.product-card');
+            if(!card) return;
+
+            const id = card.dataset.id;
+            const name = card.dataset.name;
+            const price = parseFloat(card.dataset.price) || 0;
+
+            let row = orderTable ? orderTable.querySelector(`tr[data-id="${id}"]`) : null;
+            if(row){
+                let qtySpan = row.querySelector('.qty');
+                let qty = (parseInt(qtySpan.innerText) || 0) + 1;
+                qtySpan.innerText = qty;
+                row.querySelector('.amount').innerText = (qty * price).toFixed(2);
+            } else if (orderTable) {
+                row = document.createElement('tr');
+                row.dataset.id = id;
+                row.dataset.price = price;
+                row.innerHTML = `
+                    <td><button type="button" class="btn btn-sm text-danger remove-item">✖</button></td>
+                    <td>${name}</td>
+                    <td class="qty-cell">
+                        <button type="button" class="btn btn-sm btn-light decrement">−</button>
+                        <span class="qty">1</span>
+                        <button type="button" class="btn btn-sm btn-light increment">+</button>
+                    </td>
+                    <td>${price.toFixed(2)}</td>
+                    <td class="amount">${price.toFixed(2)}</td>
+                `;
+                orderTable.appendChild(row);
+            }
+            updateGrandTotal();
+        });
+    }
+
+    document.addEventListener('click', function(e){
+        const row = e.target.closest('tr');
+        if(!row) return;
+
+        if(e.target.classList.contains('increment')){
+            let qty = parseInt(row.querySelector('.qty').innerText) + 1;
+            row.querySelector('.qty').innerText = qty;
+        }
+        if(e.target.classList.contains('decrement')){
+            let qty = parseInt(row.querySelector('.qty').innerText) - 1;
+            if(qty <= 0) row.remove();
+            else row.querySelector('.qty').innerText = qty;
+        }
+        if(e.target.classList.contains('remove-item')){
+            row.remove();
+        }
+
+        const amountEl = row.querySelector('.amount');
+        const qtyEl = row.querySelector('.qty');
+        if (amountEl && qtyEl && row.dataset.price) {
+            amountEl.innerText = (parseInt(qtyEl.innerText) * parseFloat(row.dataset.price)).toFixed(2);
+        }
+        updateGrandTotal();
+    });
+    if (discountInput) discountInput.addEventListener('input', updateGrandTotal);
+});
+
+// inside DOMContentLoaded
+const orderItemsInput = document.getElementById('order-items-input');
+const orderForm = document.getElementById('order-form');
+
+if(orderForm){
+    orderForm.addEventListener('submit', function(e){
+        const items = [];
+        document.querySelectorAll('#order-items tr').forEach(row => {
+            const id = row.dataset.id;
+            const qty = parseInt(row.querySelector('.qty').innerText) || 0;
+            const price = parseFloat(row.dataset.price) || 0;
+            if(qty > 0){
+                items.push({
+                    product_id: id,
+                    quantity: qty,
+                    price: price
+                });
+            }
+        });
+
+        if(items.length === 0){
+            e.preventDefault();
+            alert("Add at least one product to the order!");
+            return false;
+        }
+
+        orderItemsInput.value = JSON.stringify(items); // <-- critical
+    });
+}
+</script>
+
+
+
+
+{% endblock %}

@@ -1,0 +1,173 @@
+{% extends 'index.html' %}
+{% block title %}Products{% endblock %}
+{% block content %}
+
+<style>
+    .product-table {
+    font-family: 'Roboto', sans-serif;
+    font-size: 14px;
+}
+
+.product-table th {
+    font-weight: 600;
+    font-size: 15px;
+}
+
+.product-table td {
+    color: #333;
+}
+
+</style>
+
+
+<!-- ALERT MESSAGE -->
+{% if messages %}
+<div class="container mt-3">
+    {% for message in messages %}
+        <div class="alert alert-success alert-dismissible fade show">
+            {{ message }}
+            <button class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+    {% endfor %}
+</div>
+{% endif %}
+
+<div class="container mt-4">
+    <div class="card shadow-sm">
+        <div class="card-body">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+               <h3 class="text-dark" style="font-family: 'Roboto', sans-serif;">Product List</h3>
+               <a href="{% url 'product_create' %}" class="btn btn-success">
+                   + Add Product
+               </a>
+           </div> <hr>
+           
+{% comment %} <!------------------------------------------  pagination   -------------------------> {% endcomment %}
+            <form method="get" class="d-inline-block mb-4">
+                <label>Data per page: </label>
+                <select name="per_page" onchange="this.form.submit()">
+                    <option value="5" {% if per_page|add:'0' == 5 %}selected{% endif %}>5</option>
+                    <option value="10" {% if per_page|add:'0' == 10 %}selected{% endif %}>10</option>
+                    <option value="25" {% if per_page|add:'0' == 25 %}selected{% endif %}>25</option>
+                    <option value="50" {% if per_page|add:'0' == 50 %}selected{% endif %}>50</option>
+                </select>
+            </form>
+
+            <table class="table table-hover align-middle product-table">
+                <thead class="table-primary">
+                    <tr>
+                        <th>#</th>
+                        <th>Image</th>
+                        <th>Name</th>
+                        <th>Category</th>
+                        <th>Price</th>
+                        <th>Stock</th>
+                        <th>Description</th>
+                        <th>Created</th>
+                        <th class="text-end">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for product in page_obj %}
+                    <tr>
+                        <td>{{ forloop.counter0|add:page_obj.start_index }}</td>
+                        <td>6
+                            {% if product.image %}
+                                <img src="{{ product.image.url }}" width="50">
+                            {% else %}
+                                <span class="text-muted">No image</span>
+                            {% endif %}
+                        </td>
+                        <td>{{ product.name }}</td>
+                        <td>{{ product.category }}</td>
+                        <td>${{ product.price }}</td>
+                        <td>
+                            {% if product.stock and product.stock.quantity < 8 %}
+                                <span class="badge bg-danger">
+                                    {{ product.stock.quantity }}
+                                </span>
+                            {% else %}
+                                <span class="badge bg-success">
+                                    {{ product.stock.quantity|default:"0" }}
+                                </span>
+                            {% endif %}
+                        </td>
+                        <td>{{ product.description|default:"-" }}</td>
+                        <td>{{ product.created_at|date:"Y-m-d" }}</td>
+                        <td class="text-end">
+                            <div class="dropdown">
+                                <button class="btn btn-sm " type="button" data-bs-toggle="dropdown" style="font-size: 22px;">
+                                    &#8942;   <!-- 3 dots -->
+                                </button>
+
+                                <ul class="dropdown-menu dropdown-menu-end">
+                                    <li>
+                                        <a class="dropdown-item" href="{% url 'product_update' product.id %}">
+                                            ✏️ Edit
+                                        </a>
+                                    </li>
+                                    <li>
+                                        <form method="post" action="{% url 'product_delete' product.id %}" onsubmit="return confirm('Are you sure you want to delete this Product?');">
+                                            {% csrf_token %}
+                                            <button type="submit" class="dropdown-item text-danger">🗑️ Delete </button>
+                                        </form>
+                                    </li>
+                                </ul>
+                            </div>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="8" class="text-center text-muted">
+                            No products found
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+
+            <!-- Pagination Controls -->
+            <nav class="d-flex justify-content-end mt-3">
+                <ul class="pagination">
+                    {% if page_obj.has_previous %}
+                    <li class="page-item">
+                        <a class="page-link" href="?page={{ page_obj.previous_page_number }}&per_page={{ per_page }}">Previous</a>
+                    </li>
+                    {% else %}
+                    <li class="page-item disabled"><span class="page-link">Previous</span></li>
+                    {% endif %}
+
+
+                    {% for num in page_obj.paginator.page_range %}
+                        {% if page_obj.number == num %}
+                            <li class="page-item active"><span class="page-link">{{ num }}</span></li>
+                        {% else %}
+                            <li class="page-item"><a class="page-link" href="?page={{ num }}&per_page={{ per_page }}">{{ num }}</a></li>
+                        {% endif %}
+                    {% endfor %}
+
+
+                    {% if page_obj.has_next %}
+                    <li class="page-item">
+                        <a class="page-link" href="?page={{ page_obj.next_page_number }}&per_page={{ per_page }}">Next</a>
+                    </li>
+                    {% else %}
+                    <li class="page-item disabled"><span class="page-link">Next</span></li>
+                    {% endif %}
+                </ul>
+            </nav>
+
+        </div>
+    </div>
+</div>
+
+<!-- AUTO OPEN MODAL IF FORM ERROR -->
+{% if form.errors %}
+<script>
+  const modal = new bootstrap.Modal(document.getElementById('productModal'));
+  modal.show();
+</script>
+{% endif %}
+
+
+{% endblock %}

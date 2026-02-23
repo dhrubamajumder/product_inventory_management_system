@@ -1,0 +1,9 @@
+/* remove background for active submenu */
+.nav-sidebar .nav-treeview .nav-link.submenu-active {
+    background-color: transparent !important;
+}
+
+/* force icon white */
+.nav-sidebar .nav-treeview .nav-link.submenu-active .nav-icon {
+    color: #ffffff !important;
+}
