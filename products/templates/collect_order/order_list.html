@@ -64,7 +64,7 @@
 
         <!-- RIGHT SIDE -->
         <div class="col-md-4">
-            <div class="card">
+            <div class="card"  style="background-color: #f3f3f3;">
                 <div class="card-header bg-success text-white">
                     Invoice Summary 
                 </div>
@@ -72,12 +72,12 @@
                     <form method="POST" action="{% url 'create_order' %}" id="order-form" >
                         {% csrf_token %}
                         <div class="mb-2">
-                            <label class="form-label">Table :</label>
+                            <label class="form-label"><b>Table :</b></label>
                             <input type="text" name="table" class="form-control" placeholder="Enter Table">
                         </div>
 
                         <div class="mb-2">
-                            <label class="form-label">Order Type :</label>
+                            <label class="form-label"> <b>Order Type :</b></label>
                             <select name="order_type" class="form-select">
                                 <option value="heaving">Heaving</option>
                                 <option value="parcel">Parcel</option>
@@ -102,29 +102,48 @@
                         <input type="hidden" name="order_items" id="order-items-input">
                         
                         <div class="mb-2">
-                            <label>Grand Amount</label>
+                            <label><b>Grand Amount</b></label>
                             <input type="text" name="grand_total" id="grand-amount" class="form-control" value="0" readonly>
                         </div>
-
-                        <div class="row mb-2">
+                        <div class="row mb-3">
                             <div class="col">
-                                <label>Discount (%)</label>
-                                <input type="number" name="discount" id="discount-amount" class="form-control" value="0" min="0" max="100">
+                                <label><b>Discount Type</b></label>
+                                <select name="discount_type" class="form-select">
+                                    <option value="discount">Discount (%)</option>
+                                    <option value="regular">Regular ৳</option>
+                                </select>
                             </div>
+                           <div class="col">
+                                <label><b>Discount</b></label>
+                                <input type="number" name="discount" id="discount-amount" class="form-control" placeholder="Enter discount" min="0" max="100">
+                            </div>
+                        </div>
+
+
+                        <div class="col">
+                            <label><b>Payable Amount</b></label>
+                            <input type="number" name="payable_amount" id="payable-amount" class="form-control" placeholder="Payable Amount" readonly>
                         </div>
 
                         <div class="row mb-3">
                             <div class="col">
-                                <label>Fund</label>
+                                <label><b>Fund</b></label>
                                 <select name="fund" class="form-select">
-                                    <option value="cash">Cash</option>
-                                    <option value="bkash">Bkash</option>
+                                    {% for fund in funds %}
+                                        <option value="{{ fund.id }}">{{ fund.fund_name }}</option>
+                                    {% endfor %}
                                 </select>
                             </div>
+
                             <div class="col">
-                                <label>Paid Amount</label>
-                                <input type="number" name="paid_amount" class="form-control" value="0">
+                                <label><b>Paid Amount</b></label>
+                                <input type="number" name="paid_amount" id="paid-amount" class="form-control" placeholder="Paid Amount" >
                             </div>
+                        </div>
+
+                        <div class="col mb-2">
+                            <label><b>Change Amount</b></label>
+                            <input type="number" name="change_amount" id="change-amount" class="form-control" placeholder="Change Amount" readonly>
                         </div>
 
                         <button type="submit" class="btn btn-success w-100">Confirm Bill</button>
@@ -139,145 +158,171 @@
 <!-- ----------------------------------------------------------------------------------------------->
 <!--------------------------------------------- javaScript ----------------------------------------->
 <!-- ----------------------------------------------------------------------------------------------->
-<script>
+ 
+ 
+ <script>
 document.addEventListener('DOMContentLoaded', function () {
-    console.log('order_list script loaded');
 
     const productGrid = document.getElementById('product-grid');
     const categoryArea = document.getElementById('category-area');
     const orderTable = document.getElementById('order-items');
+
     const grandAmountInput = document.getElementById('grand-amount');
+    const payableAmountInput = document.getElementById('payable-amount');
     const discountInput = document.getElementById('discount-amount');
+    const discountTypeSelect = document.querySelector('select[name="discount_type"]');
 
-    if (!productGrid) console.warn('product-grid not found');
-    if (!categoryArea) console.warn('category-area not found');
-    if (!orderTable) console.warn('order-items tbody not found');
-    if (!grandAmountInput) console.warn('grand-amount input not found');
-    if (!discountInput) console.warn('discount-amount input not found');
+    const paidAmountInput = document.getElementById('paid-amount');
+    const changeAmountInput = document.getElementById('change-amount');
 
-    function updateGrandTotal() {
-        if (!orderTable || !discountInput || !grandAmountInput) return;
+    const orderItemsInput = document.getElementById('order-items-input');
+    const orderForm = document.getElementById('order-form');
+
+    console.log('PAID:', paidAmountInput);
+    console.log('CHANGE:', changeAmountInput);
+
+    if (!paidAmountInput || !changeAmountInput) {
+        console.error('Paid / Change input not found');
+        return;
+    }
+
+    /* ---------------- TOTAL CALCULATION ---------------- */
+    function updateTotals() {
         let total = 0;
         orderTable.querySelectorAll('tr').forEach(row => {
-            const amtEl = row.querySelector('.amount');
-            const amount = amtEl ? parseFloat(amtEl.innerText) || 0 : 0;
+            const amount = parseFloat(row.querySelector('.amount').innerText) || 0;
             total += amount;
         });
-        const discountPercent = parseFloat(discountInput.value) || 0;
-        grandAmountInput.value = (total * (1 - discountPercent / 100)).toFixed(2);
+
+        grandAmountInput.value = total.toFixed(2);
+
+        let discountValue = parseFloat(discountInput.value) || 0;
+        let payable = total;
+
+        if (discountTypeSelect.value === 'discount') {
+            payable -= (total * discountValue / 100);
+        } else {
+            payable -= discountValue;
+        }
+
+        payable = payable < 0 ? 0 : payable;
+        payableAmountInput.value = payable.toFixed(2);
+
+        // 🔹 Call change update AFTER payable is set
+        updateChange();
     }
 
-    if (categoryArea) {
-        categoryArea.addEventListener('click', function(e){
-            const btn = e.target.closest('.category-btn');
-            if(!btn) return;
-            const catId = btn.dataset.id;
-            document.querySelectorAll('#product-grid .product-col').forEach(col => {
-                const card = col.querySelector('.product-card');
-                if(!card) return;
-                if(catId === 'all' || card.dataset.category === catId){
-                    col.style.display = '';
-                } else {
-                    col.style.display = 'none';
-                }
-            });
+    paidAmountInput.addEventListener('input', updateChange);
+    discountInput.addEventListener('input', updateTotals);
+    discountTypeSelect.addEventListener('change', updateTotals);
+
+
+    function updateChange() {
+        const paid = parseFloat(paidAmountInput.value) || 0;
+        const payable = parseFloat(payableAmountInput.value) || 0;
+        changeAmountInput.value = (paid - payable).toFixed(2); // <-- negative allowed
+    }
+
+    /* ---------------- CATEGORY FILTER ---------------- */
+    categoryArea.addEventListener('click', function (e) {
+        const btn = e.target.closest('.category-btn');
+        if (!btn) return;
+
+        const catId = btn.dataset.id;
+        document.querySelectorAll('.product-col').forEach(col => {
+            const card = col.querySelector('.product-card');
+            col.style.display =
+                catId === 'all' || card.dataset.category === catId ? '' : 'none';
         });
-    }
+    });
 
-    if (productGrid) {
-        productGrid.addEventListener('click', function(e){
-            const card = e.target.closest('.product-card');
-            if(!card) return;
+    /* ---------------- ADD PRODUCT ---------------- */
+    productGrid.addEventListener('click', function (e) {
+        const card = e.target.closest('.product-card');
+        if (!card) return;
 
-            const id = card.dataset.id;
-            const name = card.dataset.name;
-            const price = parseFloat(card.dataset.price) || 0;
+        const id = card.dataset.id;
+        const name = card.dataset.name;
+        const price = parseFloat(card.dataset.price);
 
-            let row = orderTable ? orderTable.querySelector(`tr[data-id="${id}"]`) : null;
-            if(row){
-                let qtySpan = row.querySelector('.qty');
-                let qty = (parseInt(qtySpan.innerText) || 0) + 1;
-                qtySpan.innerText = qty;
-                row.querySelector('.amount').innerText = (qty * price).toFixed(2);
-            } else if (orderTable) {
-                row = document.createElement('tr');
-                row.dataset.id = id;
-                row.dataset.price = price;
-                row.innerHTML = `
-                    <td><button type="button" class="btn btn-sm text-danger remove-item">✖</button></td>
-                    <td>${name}</td>
-                    <td class="qty-cell">
-                        <button type="button" class="btn btn-sm btn-light decrement">−</button>
-                        <span class="qty">1</span>
-                        <button type="button" class="btn btn-sm btn-light increment">+</button>
-                    </td>
-                    <td>${price.toFixed(2)}</td>
-                    <td class="amount">${price.toFixed(2)}</td>
-                `;
-                orderTable.appendChild(row);
-            }
-            updateGrandTotal();
-        });
-    }
+        let row = orderTable.querySelector(`tr[data-id="${id}"]`);
 
-    document.addEventListener('click', function(e){
-        const row = e.target.closest('tr');
-        if(!row) return;
-
-        if(e.target.classList.contains('increment')){
+        if (row) {
             let qty = parseInt(row.querySelector('.qty').innerText) + 1;
             row.querySelector('.qty').innerText = qty;
+            row.querySelector('.amount').innerText = (qty * price).toFixed(2);
+        } else {
+            row = document.createElement('tr');
+            row.dataset.id = id;
+            row.dataset.price = price;
+            row.innerHTML = `
+                <td><button type="button" class="btn btn-sm text-danger remove-item">✖</button></td>
+                <td>${name}</td>
+                <td>
+                    <button type="button" class="btn btn-sm btn-light decrement">−</button>
+                    <span class="qty">1</span>
+                    <button type="button" class="btn btn-sm btn-light increment">+</button>
+                </td>
+                <td>${price.toFixed(2)}</td>
+                <td class="amount">${price.toFixed(2)}</td>
+            `;
+            orderTable.appendChild(row);
         }
-        if(e.target.classList.contains('decrement')){
-            let qty = parseInt(row.querySelector('.qty').innerText) - 1;
-            if(qty <= 0) row.remove();
-            else row.querySelector('.qty').innerText = qty;
-        }
-        if(e.target.classList.contains('remove-item')){
-            row.remove();
-        }
-
-        const amountEl = row.querySelector('.amount');
-        const qtyEl = row.querySelector('.qty');
-        if (amountEl && qtyEl && row.dataset.price) {
-            amountEl.innerText = (parseInt(qtyEl.innerText) * parseFloat(row.dataset.price)).toFixed(2);
-        }
-        updateGrandTotal();
+        updateTotals();
     });
-    if (discountInput) discountInput.addEventListener('input', updateGrandTotal);
-});
 
-// inside DOMContentLoaded
-const orderItemsInput = document.getElementById('order-items-input');
-const orderForm = document.getElementById('order-form');
+    /* ---------------- QTY CONTROL ---------------- */
+    document.addEventListener('click', function (e) {
+        const row = e.target.closest('#order-items tr');
+        if (!row) return;
 
-if(orderForm){
-    orderForm.addEventListener('submit', function(e){
+        let qtyEl = row.querySelector('.qty');
+        let qty = parseInt(qtyEl.innerText);
+        let price = parseFloat(row.dataset.price);
+
+        if (e.target.classList.contains('increment')) qty++;
+        if (e.target.classList.contains('decrement')) qty--;
+        if (e.target.classList.contains('remove-item')) qty = 0;
+
+        if (qty <= 0) row.remove();
+        else {
+            qtyEl.innerText = qty;
+            row.querySelector('.amount').innerText = (qty * price).toFixed(2);
+        }
+        updateTotals();
+    });
+
+    discountInput.addEventListener('input', updateTotals);
+    discountTypeSelect.addEventListener('change', updateTotals);
+    paidAmountInput.addEventListener('input', updateChange);
+
+    /* ---------------- FORM SUBMIT ---------------- */
+    orderForm.addEventListener('submit', function (e) {
         const items = [];
-        document.querySelectorAll('#order-items tr').forEach(row => {
-            const id = row.dataset.id;
-            const qty = parseInt(row.querySelector('.qty').innerText) || 0;
-            const price = parseFloat(row.dataset.price) || 0;
-            if(qty > 0){
-                items.push({
-                    product_id: id,
-                    quantity: qty,
-                    price: price
-                });
-            }
+
+        orderTable.querySelectorAll('tr').forEach(row => {
+            items.push({
+                product_id: row.dataset.id,
+                quantity: parseInt(row.querySelector('.qty').innerText),
+                price: parseFloat(row.dataset.price)
+            });
         });
 
-        if(items.length === 0){
+        if (items.length === 0) {
             e.preventDefault();
-            alert("Add at least one product to the order!");
-            return false;
+            alert('Add at least one product!');
+            return;
         }
-
-        orderItemsInput.value = JSON.stringify(items); // <-- critical
+        orderItemsInput.value = JSON.stringify(items);
     });
-}
-</script>
+});
 
+console.log(
+    document.getElementById('payable-amount'),
+    document.getElementById('paid-amount'),
+    document.getElementById('change-amount'),
+);
+</script>
 
 
 

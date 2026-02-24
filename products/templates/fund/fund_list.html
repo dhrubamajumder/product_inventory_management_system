@@ -2,6 +2,16 @@
 {% block title %}Fund List{% endblock %}
 
 {% block content %}
+<!-- ALERT MESSAGE -->
+{% if messages %}
+    {% for message in messages %}
+        <div class="alert alert-success alert-dismissible fade show">
+            {{ message }}
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+    {% endfor %}
+{% endif %}
+
 <div class="text m-3">
     <a href="{% url 'dashboard' %}" style="text-decoration: none; color: #6e6e6e;"><b> Dashboard</b></a>
      / 
@@ -17,15 +27,7 @@
     <div class="card shadow-sm">
         <div class="card-body">
 
-            <!-- ALERT MESSAGE -->
-            {% if messages %}
-                {% for message in messages %}
-                    <div class="alert alert-success alert-dismissible fade show">
-                        {{ message }}
-                        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-                    </div>
-                {% endfor %}
-            {% endif %}
+            
             <form method="get" class="d-inline-block mb-3">
                 <label>Data per page: </label>
                 <select name="per_page" onchange="this.form.submit()">

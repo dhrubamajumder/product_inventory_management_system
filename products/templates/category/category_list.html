@@ -50,7 +50,7 @@
                         <th class="ms-2">ID</th>
                         <th>Name</th>
                         <th>Description</th>
-                        <th>Created At</th>
+                        <th class="text-center">Created At</th>
                         <th class="text-end">Actions</th>
                     </tr>
                 </thead>
@@ -60,7 +60,7 @@
                         <td>{{ forloop.counter0|add:page_obj.start_index }}</td>
                         <td>{{ category.name }}</td>
                         <td><small>{{ category.description|default:"-" }}</small></td>
-                        <td><small>{{ category.created_at|date:"Y-m-d H:i" }}</small></td>
+                        <td class="text-center"><small>{{ category.created_at|date:"Y-m-d H:i" }}</small></td>
                         <td class="text-end">
                             <div class="dropdown">
                                 <button class="btn btn-sm " type="button" data-bs-toggle="dropdown" style="font-size: 22px;">

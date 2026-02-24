@@ -166,12 +166,26 @@ class Order(models.Model):
     table = models.CharField(max_length=50)
     order_type = models.CharField(max_length=20, choices=[('heaving','Heaving'),('parcel','Parcel')])
     discount = models.FloatField(default=0)
+    discount_type = models.CharField(
+        max_length=10,
+        choices=[('discount', 'Percentage'), ('regular', 'Fixed')],
+        default='discount')
     grand_total = models.FloatField(default=0)
-    fund = models.CharField(max_length=20, choices=[('cash','Cash'),('bkash','Bkash')])
+    fund = models.ForeignKey(Fund, on_delete=models.SET_NULL, null=True, blank=True)
     paid_amount = models.FloatField(default=0)
+    change_amount = models.DecimalField(max_digits=12, decimal_places=2, default=0)
     created_at = models.DateTimeField(auto_now_add=True)
-    status = models.CharField(max_length=20, default='pending')  # pending / completed
+    status = models.CharField(max_length=20, default='pending')
 
+    @property
+    def payable_amount(self):
+        if self.discount_type == 'discount':
+            return self.grand_total - (self.grand_total * self.discount / 100)
+        else:  # regular fixed amount
+            return self.grand_total - self.discount
+    
+    
+    
 class OrderItem(models.Model):
     order = models.ForeignKey(Order, on_delete=models.CASCADE, related_name='items')
     product_name = models.CharField(max_length=100)

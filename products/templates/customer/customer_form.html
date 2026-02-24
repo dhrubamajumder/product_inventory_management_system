@@ -5,7 +5,7 @@
 <div class="text m-3">
     <a href="{% url 'dashboard' %}" style="text-decoration: none; color: #6e6e6e;"><b> Dashboard</b></a>
      / 
-    <a href="{% url 'customer' %}" style="text-decoration: none; color: #6e6e6e;"><b>Customer List</b></a>
+    <a href="{% url 'customer' %}" style="text-decoration: none; color: #6e6e6e;"><b>{% if customer %} Update Customer{% else %} Create Customer{% endif %}</b></a>
       / 
     <span style="color: #39a5b8;"><b>Customer Create</b></span>
 

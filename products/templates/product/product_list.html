@@ -63,7 +63,7 @@
                         <th>Price</th>
                         <th>Stock</th>
                         <th>Description</th>
-                        <th>Created</th>
+                        <th class="text-center">Created</th>
                         <th class="text-end">Actions</th>
                     </tr>
                 </thead>
@@ -93,7 +93,7 @@
                             {% endif %}
                         </td>
                         <td>{{ product.description|default:"-" }}</td>
-                        <td>{{ product.created_at|date:"Y-m-d" }}</td>
+                        <td class="text-center">{{ product.created_at|date:"Y-m-d" }}</td>
                         <td class="text-end">
                             <div class="dropdown">
                                 <button class="btn btn-sm " type="button" data-bs-toggle="dropdown" style="font-size: 22px;">

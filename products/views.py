@@ -7,8 +7,11 @@ from django.forms import modelform_factory
 from django.core.paginator import Paginator
 from .utils import paginate_queryset
 import json
+from decimal import Decimal
 from django.db import transaction
 from django.db.models import Sum
+from django.db.models import Q, F
+
 
 # Create your views here.
 
@@ -327,20 +330,20 @@ def setting_update(request, pk):
 
 # -=====================================================   Fund Create  ================================
 def fund_list(request):
-    funds = Fund.objects.all().order_by('-id')  
-    per_page = request.GET.get('per_page', 10)
-    try:
-        per_page = int(per_page)
-    except ValueError:
-        per_page = 10
-    paginator = Paginator(funds, per_page)
-    page_number = request.GET.get('page')
-    page_obj = paginator.get_page(page_number)
-    context = {
-        'page_obj': page_obj,
-        'per_page': per_page,}
-    return render(request, 'fund/fund_list.html', context)
+    per_page = int(request.GET.get('per_page', 10))
+    page = request.GET.get('page', 1)
 
+    funds = Fund.objects.all().order_by('id')  # 👈 fresh queryset
+
+    paginator = Paginator(funds, per_page)
+    page_obj = paginator.get_page(page)
+
+    return render(request, 'fund/fund_list.html', {
+        'page_obj': page_obj,
+        'per_page': per_page,
+    })
+    
+    
 # Create
 def fund_create(request):
     form = FundForm(request.POST or None)
@@ -490,7 +493,9 @@ def payment_list(request):
     page_obj = paginator.get_page(page_number)
     context = {
         'page_obj': page_obj,
-        'per_page': per_page,}
+        'per_page': per_page,
+        'supplier':supplier,
+        }
     return render(request, 'supplier/payment_list.html', context)
 
 
@@ -586,7 +591,7 @@ def customer_payment_delete(request, id):
     return redirect('customer_payment_list')
 
 
-# -=====================================================   Customer Payment Create  ===========================================
+# -=====================================================   Fund Transfer List  ===========================================
 
 def fund_transfer_list(request):
     transfers = FundTransfer.objects.all().order_by('-id')
@@ -606,31 +611,118 @@ def fund_transfer_list(request):
 
 def fund_transfer_create(request):
     form = FundTransferForm(request.POST or None)
+    funds = Fund.objects.filter(amount__gt=0)
+    fund = Fund.objects.all()
     if request.method == 'POST' and form.is_valid():
-        transfer = form.save(commit=False)
-        transfer.created_by = request.user
-        transfer.save()
+        from_fund_id = request.POST.get('from_fund')
+        to_fund_id = request.POST.get('to_fund')
+        amount = form.cleaned_data['amount']
+        date = form.cleaned_data['date']
+        note = form.cleaned_data.get('note', '')
+        # get Fund objects
+        from_fund = get_object_or_404(Fund, pk=from_fund_id)
+        to_fund = get_object_or_404(Fund, pk=to_fund_id)
+        # Validate amount: can't transfer more than available
+        if amount > from_fund.amount:
+            messages.error(request, f"Cannot transfer {amount}. {from_fund.fund_name} only has {from_fund.amount}.")
+            return redirect('fund_transfer_create')
+        try:
+            with transaction.atomic():
+                # Create FundTransfer record
+                transfer = FundTransfer.objects.create(
+                    from_fund=from_fund,
+                    to_fund=to_fund,
+                    amount=amount,
+                    date=date,
+                    note=note,
+                    created_by=request.user)
+                # Update funds
+                from_fund.amount -= amount
+                from_fund.save()
+                to_fund.amount += amount
+                to_fund.save()
+        except Exception as e:
+            messages.error(request, f"Error: {str(e)}")
+            return redirect('fund_transfer_create')
+        messages.success(request, f"Transferred {amount} from {from_fund.fund_name} to {to_fund.fund_name}")
         return redirect('fund_transfer_list')
-    funds = Fund.objects.all()
     context = {
         'form': form,
         'funds': funds,
+        'fund': fund,
         'transfer': None,}
     return render(request, 'fund/fund_tran_form.html', context)
 
 
-def fund_transfer_update(request, id):
-    transfer = get_object_or_404(FundTransfer, id=id)
+def fund_transfer_update(request, pk):
+    transfer = get_object_or_404(FundTransfer, pk=pk)
     form = FundTransferForm(request.POST or None, instance=transfer)
+
+    # List of available funds
+    from_funds = Fund.objects.filter(Q(amount__gt=0) | Q(id=transfer.from_fund.id))
+    to_funds = Fund.objects.all()
+
     if request.method == 'POST' and form.is_valid():
-        form.save()
+        from_fund_id = request.POST.get('from_fund')
+        to_fund_id = request.POST.get('to_fund')
+        amount = form.cleaned_data['amount']
+
+        try:
+            with transaction.atomic():
+                # Step 1: Revert old transfer
+                Fund.objects.filter(pk=transfer.from_fund.pk).update(
+                    amount=F('amount') + transfer.amount
+                )
+                Fund.objects.filter(pk=transfer.to_fund.pk).update(
+                    amount=F('amount') - transfer.amount
+                )
+
+                # Refresh fund instances after revert
+                from_fund = get_object_or_404(Fund, pk=from_fund_id)
+                to_fund = get_object_or_404(Fund, pk=to_fund_id)
+                from_fund.refresh_from_db()
+                to_fund.refresh_from_db()
+
+                # Step 2: Validation
+                if amount > from_fund.amount:
+                    messages.error(
+                        request,
+                        f"{from_fund.fund_name} only has {from_fund.amount}"
+                    )
+                    return redirect('fund_transfer_update', pk=pk)
+
+                # Step 3: Save updated transfer
+                updated_transfer = form.save(commit=False)
+                updated_transfer.from_fund = from_fund
+                updated_transfer.to_fund = to_fund
+                updated_transfer.save()
+                updated_transfer.refresh_from_db()
+
+                # Step 4: Apply new transfer safely
+                Fund.objects.filter(pk=from_fund.pk).update(
+                    amount=F('amount') - amount
+                )
+                Fund.objects.filter(pk=to_fund.pk).update(
+                    amount=F('amount') + amount
+                )
+
+                # Refresh fund instances after update
+                from_fund.refresh_from_db()
+                to_fund.refresh_from_db()
+
+        except Exception as e:
+            messages.error(request, str(e))
+            return redirect('fund_transfer_list')
+
+        messages.success(request, "Fund Transfer updated successfully!")
         return redirect('fund_transfer_list')
-    funds = Fund.objects.all()
-    context = {
+
+    return render(request, 'fund/fund_tran_form.html', {
         'form': form,
-        'funds': funds,
-        'transfer': transfer,}
-    return render(request, 'fund/fund_tran_form.html', context)
+        'funds': from_funds,
+        'fund': to_funds,
+        'transfer': transfer,
+    })
 
 
 def fund_transfer_delete(request, id):
@@ -640,89 +732,21 @@ def fund_transfer_delete(request, id):
 
 
 
-# -=====================================================   Collect Order  ===========================================
-
-
-def create_order(request):
-    if request.method == 'POST':
-        try:
-            table = request.POST.get('table')
-            order_type = request.POST.get('order_type')
-            fund = request.POST.get('fund')
-            discount = float(request.POST.get('discount') or 0)
-            grand_total = float(request.POST.get('grand_total') or 0)
-            paid_amount = float(request.POST.get('paid_amount') or 0)
-            print("POST DATA:", request.POST)
-            print("ORDER ITEMS RAW:", request.POST.get('order_items'))
-            if Order.objects.filter(table=table, status='pending').exists():
-                messages.error(request, f"Table {table} already has a pending order!")
-                return redirect('create_order')
-            items = json.loads(request.POST.get('order_items', '[]'))
-            if not items:
-                messages.error(request, "No order items found!")
-                return redirect('create_order')
-            with transaction.atomic():
-                order = Order.objects.create(
-                    table=table,
-                    order_type=order_type,
-                    discount=discount,
-                    grand_total=grand_total,
-                    paid_amount=paid_amount,
-                    fund=fund,
-                    status='pending')
-                for item in items:
-                    product = Product.objects.select_for_update().get(id=item['product_id'])
-                    quantity = int(item['quantity'])
-                    price = float(item['price'])
-                    amount = quantity * price
-                    if not hasattr(product, 'stock') or product.stock.quantity < quantity:
-                        raise Exception(f"{product.name} not available in stock.")
-                    OrderItem.objects.create(
-                        order=order,
-                        product_name=product.name,
-                        quantity=quantity,
-                        price=price,
-                        amount=amount
-                    )
-                    product.stock.quantity -= quantity
-                    product.stock.save()
-            messages.success(request, "Order created successfully!")
-            return redirect('pending_orders')
-        except Exception as e:
-            messages.error(request, str(e))
-            return redirect('create_order')
-    categories = Category.objects.all()
-    products = Product.objects.filter(stock__quantity__gt=0)
-
-    return render(request, 'collect_order/order_list.html', {
-        'categories': categories,
-        'products': products
-    })
-
-
-def order_list(request, category_id = None):
-    categories = Category.objects.all()
-    if category_id:
-        selected_category = get_object_or_404(Category, pk=category_id)
-        products = Product.objects.filter(category=selected_category)
-    else:
-        products = Product.objects.all()
-        selected_category = None
-    context = {'categories':categories, 'products':products, 'selected_category':selected_category}
-    return render(request, 'collect_order/order_list.html', context)
-
-
 
 
 # -------------------------------------------    Purchase Create    ------------------------------------------------------------
 
 def purchase_list(request):
-    purchases = Purchase.objects.all().order_by('-purchase_date')
-    paginator = Paginator(purchases, 10)  # 10 per page
-    page_number = request.GET.get('page')
-    page_obj = paginator.get_page(page_number)
+    per_page = int(request.GET.get('per_page', 10))  # ডিফল্ট 10
+    page = request.GET.get('page', 1)
+    purchases = Purchase.objects.all().order_by('-purchase_date')  # fresh queryset
+    paginator = Paginator(purchases, per_page)
+    purchase_item = PurchaseItem.objects.all()
+    page_obj = paginator.get_page(page)
     context = {
-        'page_obj': page_obj
+        'page_obj': page_obj,
+        'per_page': per_page,
+        'purchase_item':purchase_item
     }
     return render(request, 'purchase/purchase_list.html', context)
 
@@ -869,29 +893,38 @@ def purchase_return(request):
 
 
 def purchase_return_list(request):
+    per_page = int(request.GET.get('per_page', 10))  # ডিফল্ট 10
+    page = request.GET.get('page', 1)
     qs = PurchaseReturn.objects.select_related(
         'purchase', 'product', 'created_by', 'purchase__supplier'
     ).order_by('-id')
-    paginator = Paginator(qs, 10)  # per page 10
-    page = request.GET.get('page')
-    returns = paginator.get_page(page)
-    return render(request, 'purchase/purchase_return_list.html', {
-        'returns': returns
-    })
-
+    paginator = Paginator(qs, per_page)
+    page_obj = paginator.get_page(page)
+    context = {
+        'page_obj': page_obj,
+        'per_page': per_page,
+    }
+    return render(request, 'purchase/purchase_return_list.html', context)
 
 # ===================================    Pending Order    =======================================================
 
     
 def pending_order_list(request):
-    orders = Order.objects.filter(status='pending') \
+    per_page = int(request.GET.get('per_page', 10)) 
+    page = request.GET.get('page', 1)
+    orders_qs = Order.objects.filter(status='pending') \
         .prefetch_related('items') \
-        .order_by('-id')
+        .order_by('-id')  # fresh queryset
+    paginator = Paginator(orders_qs, per_page)
+    page_obj = paginator.get_page(page)
     settings = SystemSettings.objects.first()
-    return render(request, 'collect_order/pending_order.html', {
-        'orders': orders,
-        'settings': settings,
-    })
+    context = {
+        'page_obj': page_obj,  # pagination object
+        'per_page': per_page,
+        'settings': settings,}
+    return render(request, 'collect_order/pending_order.html', context)
+
+
     
 def accept_order(request, order_id):
     order = Order.objects.get(id=order_id, status='pending')
@@ -902,77 +935,135 @@ def accept_order(request, order_id):
 
 
 
+# =================================================  Collect Order  ===========================================
+
+
+def order_list(request, category_id=None):
+    categories = Category.objects.all()
+    funds = Fund.objects.all()
+
+    if category_id:
+        selected_category = get_object_or_404(Category, pk=category_id)
+        products = Product.objects.filter(category=selected_category, stock__isnull=False, stock__quantity__gt=0)
+    else:
+        products = Product.objects.filter(stock__isnull=False, stock__quantity__gt=0)
+        selected_category = None
+    context = {
+        'categories': categories,
+        'products': products,
+        'selected_category': selected_category,
+        'funds': funds}
+    return render(request, 'collect_order/order_list.html', context)
+
+
 def create_collect_order(request):
     if request.method == 'POST':
         table = request.POST.get('table')
         order_type = request.POST.get('order_type')
-        discount = request.POST.get('discount') or 0
-        grand_total = request.POST.get('grand_total') or 0
-        paid_amount = request.POST.get('paid_amount') or 0
-        fund = request.POST.get('fund')
+        discount = Decimal(request.POST.get('discount') or 0)
+        grand_total = Decimal(request.POST.get('grand_total') or 0)
+        paid_amount = Decimal(request.POST.get('paid_amount') or 0)
+        change_amount = Decimal(request.POST.get('change_amount') or 0)
+        fund_id = request.POST.get('fund')
 
-        #  check pending order by table
+        if not table:
+            messages.error(request, "Table is required!")
+            return redirect('create_order')
+
         if Order.objects.filter(table=table, status='pending').exists():
             messages.error(request, f"Table {table} already has a pending order!")
             return redirect('create_order')
 
-        order = Order.objects.create(
-            table=table,
-            order_type=order_type,
-            discount=discount,
-            grand_total=grand_total,
-            paid_amount=paid_amount,
-            fund=fund,
-            status='pending'
-        )
-
         items = json.loads(request.POST.get('order_items', '[]'))
-        
-        for item in items:
-            product = Product.objects.get(id=item['product_id'])
-            quantity = int(item['quantity'])
-            price = float(item['price'])
-            amount = quantity * price
+        if not items:
+            messages.error(request, "Add at least one product!")
+            return redirect('create_order')
 
-            # Stock check
-            if product.stock.quantity < quantity:
-                messages.error(request, f"{product.name} not available.")
-                order.delete() 
-                return redirect('create_order')
-            # OrderItem create
-            OrderItem.objects.create(
-                order=order,
-                product_name=product.name,
-                quantity=quantity,
-                price=price,
-                amount=amount
-            )
-            # Stock update
-            product.stock.quantity -= quantity
-            product.stock.save()
-            
-        messages.success(request, "Order created successfully!")
+        fund = get_object_or_404(Fund, pk=fund_id) if fund_id else None
+
+        try:
+            with transaction.atomic():
+                # Create Order
+                order = Order.objects.create(
+                    table=table,
+                    order_type=order_type,
+                    discount=discount,
+                    grand_total=grand_total,
+                    paid_amount=paid_amount,
+                    change_amount=change_amount,
+                    fund=fund,
+                    status='pending'
+                )
+
+                # Create Order Items
+                for item in items:
+                    product = Product.objects.get(id=item['product_id'])
+                    quantity = int(item['quantity'])
+                    price = Decimal(item['price'])
+                    amount = quantity * price
+
+                    if product.stock.quantity < quantity:
+                        raise ValueError(f"{product.name} not enough stock!")
+
+                    OrderItem.objects.create(
+                        order=order,
+                        product_name=product.name,
+                        quantity=quantity,
+                        price=price,
+                        amount=amount
+                    )
+
+                    # Reduce product stock
+                    product.stock.quantity -= quantity
+                    product.stock.save()
+
+                # Update fund amount
+                if fund:
+                    print("Paid amount:", paid_amount, "Fund before:", fund.amount)
+                    fund.amount += paid_amount
+                    fund.save()
+                    print("Fund after:", fund.amount)
+
+        except Exception as e:
+            messages.error(request, str(e))
+            return redirect('create_order')
+
+        messages.success(request, "Order created successfully and Fund updated!")
         return redirect('pending_orders')
 
-    # ✅ IMPORTANT: GET request handle
+    # GET request
     categories = Category.objects.all()
     products = Product.objects.filter(stock__isnull=False, stock__quantity__gt=0)
-    # products = Product.objects.all()
+    funds = Fund.objects.all()
     return render(request, 'collect_order/order_list.html', {
         'categories': categories,
-        'products': products
+        'products': products,
+        'funds': funds
     })
-
-
+    
+    
 
 # ===============================   Sales Report =======================
 def sales_report_list(request):
     orders = Order.objects.filter(status='completed').order_by('-created_at')
+    per_page = request.GET.get('per_page', 10)
+    try:
+        per_page = int(per_page)
+    except ValueError:
+        per_page = 10
+    paginator = Paginator(orders, per_page)
+    page_number = request.GET.get('page')
+    page_obj = paginator.get_page(page_number)
+    # Total grand amount (all orders, not just page)
     total_grand = orders.aggregate(total=Sum('grand_total'))['total'] or 0
-    return render(request, 'stock/stock_list.html', {
-        'orders': orders,
-        'total_grand': total_grand
-    })
+    settings = SystemSettings.objects.first()
+    context = {
+        'page_obj': page_obj,
+        'per_page': per_page,
+        'total_grand': total_grand,
+        'settings': settings,}
+    return render(request, 'stock/stock_list.html', context)
+    
     
     
 def purchase_report(request):
@@ -989,6 +1080,6 @@ def purchase_report(request):
     page_obj = paginator.get_page(page_number)
     context = {
         'page_obj': page_obj,
-        'per_page': per_page,  # pass this to template
-    }
+        'per_page': per_page,}
     return render(request, 'purchase/purchase_report.html', context)
+

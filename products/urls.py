@@ -63,7 +63,7 @@ urlpatterns = [
     
     path('fund-transfer/list/', views.fund_transfer_list, name='fund_transfer_list'),
     path('fund-transfer/create/', views.fund_transfer_create, name='fund_transfer_create'),
-    path('fund-transfer/<int:id>/update/', views.fund_transfer_update, name='fund_transfer_update'),
+    path('fund-transfer/<int:pk>/update/', views.fund_transfer_update, name='fund_transfer_update'),
     path('fund-transfer/<int:id>/delete/', views.fund_transfer_delete, name='fund_transfer_delete'),
     
     path('orders/create/', views.create_collect_order, name='create_order'),
