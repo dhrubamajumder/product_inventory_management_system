@@ -66,18 +66,26 @@
                                 <td>{{ purchase.service|default:"0" }}</td>
                                 <td>{{ purchase.total_amount }}</td>
                                 <td>{{ purchase.purchase_date|date:"Y-m-d H:i" }}</td>
-                                <td class="text-end">
+                                <td class="text-end p-2">
                                     <div class="dropdown">
-                                        <button class="btn btn-sm" type="button" data-bs-toggle="dropdown">&#8942;</button>
+                                        <button class="btn btn-sm " type="button" data-bs-toggle="dropdown" style="font-size: 22px;">
+                                            &#8942;   <!-- 3 dots -->
+                                        </button>
+
                                         <ul class="dropdown-menu dropdown-menu-end">
                                             <li>
-                                                <a class="dropdown-item" href="{% url 'purchase_update' purchase.id %}">✏️ Edit</a>
+                                                <button type="button" class="dropdown-item"
+                                                        data-bs-toggle="modal"
+                                                        data-bs-target="#viewModal{{ purchase.id }}">
+                                                    👁️ View
+                                                </button>
                                             </li>
                                             <li>
-                                                <form method="post" action="{% url 'purchase_delete' purchase.id %}" onsubmit="return confirm('Are you sure you want to delete this purchase?');">
-                                                    {% csrf_token %}
-                                                    <button type="submit" class="dropdown-item text-danger">🗑️ Delete</button>
-                                                </form>
+                                                <button type="button" class="dropdown-item"
+                                                        data-bs-toggle="modal"
+                                                        data-bs-target="#printModal{{ purchase.id }}">
+                                                    🖨️ Print
+                                                </button>
                                             </li>
                                         </ul>
                                     </div>
@@ -127,5 +135,154 @@
     </div>
 </div>
 
+
+
+{% for purchase in page_obj %}
+<!-- VIEW MODAL -->
+<div class="modal fade" id="viewModal{{ purchase.id }}" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+
+            <div class="modal-header">
+                <h5 class="modal-title">Purchase Details - #{{ purchase.id }}</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+
+            <div class="modal-body">
+                <div class="row">
+                    <div class="col-6">
+                        <p><strong>Supplier:</strong> {{ purchase.supplier.name }}</p>
+                        <p><strong>Date:</strong> {{ purchase.purchase_date|date:"Y-m-d H:i" }}</p>
+                    </div>
+                    <div class="col-6 text-end p-2">
+                        <p>Company Name:<strong> a4b</strong></p>
+                        <p>Address:<strong> Feni</strong></p>
+                    </div>
+                </div>
+                
+
+                <table class="table table-striped">
+                    <thead class="table-light">
+                        <tr>
+                            <th>#</th>
+                            <th>Product</th>
+                            <th>Qty</th>
+                            <th class="text-end">Purchase Price</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for item in purchase.items.all %}
+                        <tr>
+                            <td>{{ forloop.counter }}</td>
+                            <td>{{ item.product.name }}</td>
+                            <td>{{ item.quantity }}</td>
+                            <td class="text-end">{{ item.purchase_price }}</td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="5" class="text-center text-muted">
+                                No items found
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                    <tfoot>
+                        <tr>
+                            <th colspan="4" class="text-end">Grand Total: {{ purchase.grand_total }}</th>
+                        </tr>
+                    </tfoot>
+                </table>
+            </div>
+
+            <div class="modal-footer">
+                <button class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+            </div>
+
+        </div>
+    </div>
+</div>
+
+
+<!-- PRINT MODAL -->
+<div class="modal fade" id="printModal{{ purchase.id }}" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+
+            <div class="modal-header">
+                <h5 class="modal-title">Purchase Invoice - #{{ purchase.id }}</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+
+            <div class="modal-body" id="printContent{{ purchase.id }}">
+                <h4 class="text-center">Purchase Invoice</h4>
+                <hr>
+                 <div class="row">
+                    <div class="col-6">
+                        <p><strong>Supplier:</strong> {{ purchase.supplier.name }}</p>
+                        <p><strong>Date:</strong> {{ purchase.purchase_date|date:"Y-m-d H:i" }}</p>
+                    </div>
+                    <div class="col-6 text-end p-2">
+                        <p>Company Name:<strong> a4b</strong></p>
+                        <p>Address:<strong> Feni</strong></p>
+                    </div>
+                </div>
+                
+                <table class="table">
+                    <thead>
+                        <tr>
+                            <th>#</th>
+                            <th>Product</th>
+                            <th>Qty</th>
+                            <th>Rate</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for item in purchase.items.all %}
+                        <tr>
+                            <td>{{ forloop.counter }}</td>
+                            <td>{{ item.product.name }}</td>
+                            <td>{{ item.quantity }}</td>
+                            <td>{{ item.purchase_price }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                    <tfoot>
+                        <tr>
+                            <th colspan="3" class="text-end">Total</th>
+                            <th>{{ purchase.total_amount }}</th>
+                        </tr>
+                    </tfoot>
+                </table>
+            </div>
+
+            <div class="modal-footer">
+                <button class="btn btn-primary" onclick="printPurchase({{ purchase.id }})">
+                    🖨️ Print
+                </button>
+                <button class="btn btn-secondary" data-bs-dismiss="modal">
+                    Close
+                </button>
+            </div>
+
+        </div>
+    </div>
+</div>
+
+{% endfor %}
+<script>
+function printPurchase(id) {
+    let content = document.getElementById('printContent' + id).innerHTML;
+    let win = window.open('', '', 'height=800,width=800');
+    win.document.write('<html><head><title>Print</title>');
+    win.document.write('<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css">');
+    win.document.write('</head><body>');
+    win.document.write(content);
+    win.document.write('</body></html>');
+    win.document.close();
+    win.focus();
+    win.print();
+    setTimeout(() => win.close(), 500);
+}
+</script>
 
 {% endblock %}

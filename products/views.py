@@ -513,20 +513,23 @@ def payment_create(request):
         'funds': funds,}
     return render(request, 'supplier/payment_form.html', context)
 
+
 def payment_update(request, id):
-    payment = get_object_or_404(SupplierPayment, id=id)
-    form = SupplierPaymentForm(request.POST or None, instance=payment)
+    expense = get_object_or_404(SupplierPayment, id=id)
+    form = SupplierPaymentForm(request.POST or None, instance=expense)
     if request.method == 'POST' and form.is_valid():
         form.save()
         return redirect('supplier_payment_list')
-    payments = SupplierPayment.objects.all()
+    suppliers = Supplier.objects.all()
     funds = Fund.objects.all()
     context = {
         'form': form,
-        'payment': payment,
-        'payments': payments,
+        'expense': expense,
+        'suppliers': suppliers,
         'funds': funds,}
     return render(request, 'supplier/payment_form.html', context)
+
+
 
 # 4️⃣ Delete payment
 def payment_delete(request, id):
@@ -1082,4 +1085,6 @@ def purchase_report(request):
         'page_obj': page_obj,
         'per_page': per_page,}
     return render(request, 'purchase/purchase_report.html', context)
+
+
 
