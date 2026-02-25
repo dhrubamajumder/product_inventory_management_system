@@ -83,6 +83,20 @@ urlpatterns = [
     path('sales/report/', views.sales_report_list, name='sales_report'),
     
     path('purchase/report/', views.purchase_report, name='purchase_report'),
+    
+    path('user/list/', views.user_list, name='user_list'),
+    path('user/create/', views.add_user, name='user_create'),
+    path('user/update/<int:id>/', views.edit_user, name='user_update'),
+    path('user/delete/<int:id>/', views.delete_user, name='user_delete'),
+    
+    path('permission/list/', views.permission_list, name='permission_list'),
+    path('permission/create/', views.permission_create, name='permission_create'),
+    
+    path('role/list/', views.role_list, name='role_list'),
+    path('role/create/', views.role_create, name='role_create'),
+    path('role/<int:role_id>/update/', views.role_update, name='role_update'),
+    path('role/<int:pk>/delete/', views.role_delete, name='role_delete'),
+
 
 ]
 

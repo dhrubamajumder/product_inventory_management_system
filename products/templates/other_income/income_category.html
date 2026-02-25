@@ -28,9 +28,11 @@
         <div class="card-body p-2">
             <div class="d-flex justify-content-between align-items-center mb-3">
                 <h3>Other Income Categories</h3>
-                <button class="btn text-white" style="background-color: rgb(56, 146, 182);" data-bs-toggle="modal" data-bs-target="#categoryModal">
+                {% if request.user.is_superuser or 'other_income_category_create' in permissions_list %}
+                <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#categoryModal">
                     + Add Category
                 </button>
+                {% endif %}
             </div>
             <!-- Data per page -->
             <form method="get" class="d-inline-block mb-3">
@@ -48,7 +50,9 @@
                         <th class="p-2">S.N.</th>
                         <th>Name</th>
                         <th>Status</th>
+                        {% if permissions_list and 'other_income_category_update' in permissions_list or permissions_list and 'other_income_category_delete' in permissions_list %}
                         <th class="text-end p-2">Actions</th>
+                        {% endif %}
                     </tr>
                 </thead>
                 <tbody>
@@ -57,6 +61,7 @@
                             <td class="p-2">{{ forloop.counter0|add:page_obj.start_index }}</td>
                             <td>{{ cat.name }}</td>
                             <td><span class="badge" style="background-color: rgb(134, 235, 179); color: rgb(31, 37, 33);"><span class="text-success"> ● </span>Active</span></td>
+                            {% if permissions_list and 'other_income_category_update' in permissions_list or permissions_list and 'other_income_category_delete' in permissions_list %}
                             <td class="text-end">
                                 <div class="dropdown">
                                     <button class="btn btn-sm " type="button" data-bs-toggle="dropdown" style="font-size: 22px;">
@@ -64,20 +69,26 @@
                                     </button>
 
                                     <ul class="dropdown-menu dropdown-menu-end">
+                                        {% if permissions_list and 'other_income_category_update' in permissions_list %}
                                         <li>
                                             <a class="dropdown-item" href="#" data-bs-toggle="modal" data-bs-target="#editModal{{ cat.id }}">
                                                 ✏️ Edit
                                             </a>
                                         </li>
-                                        <li>
-                                            <form method="post" action="{% url 'income_category_delete' cat.id %}" onsubmit="return confirm('Are you sure you want to delete this category?');">
-                                                {% csrf_token %}
-                                                <button type="submit" class="dropdown-item text-danger">🗑️ Delete </button>
-                                            </form>
-                                        </li>
+                                        {% endif %}
+                                        {% if permissions_list and 'other_income_category_delete' in permissions_list %}
+                                         <li>
+                                             <form method="post" action="{% url 'income_category_delete' cat.id %}" onsubmit="return confirm('Are you sure you want to delete this category?');">
+                                                 {% csrf_token %}
+                                                 <button type="submit" class="dropdown-item text-danger">🗑️ Delete </button>
+                                             </form>
+                                         </li>
+                                         {% endif %}
+                                        
                                     </ul>
                                 </div>
                             </td>
+                            {% endif %}
                         </tr>
 
                         <!-- Optional: Edit Modal per category -->

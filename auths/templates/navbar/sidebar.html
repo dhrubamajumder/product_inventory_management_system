@@ -1,6 +1,5 @@
 {% load static %}
 
-
     <aside class="app-sidebar bg-body-secondary shadow" data-bs-theme="dark">
         <div class="sidebar-brand">
             <a href="#" class="brand-link text-white"> POS
@@ -8,13 +7,14 @@
             </a>
         </div>
 
+
       <div class="sidebar-wrapper">
         <nav class="mt-2">
 
             <!-------------------------------     Dashboard   ---------------------------------->
             <ul class="nav sidebar-menu flex-column" data-lte-toggle="treeview" role="navigation" aria-label="Main navigation" data-accordion="false" id="navigation">
                 <li class="nav-item">
-                    <a href="{% url 'dashboard' %}" class="nav-link"><i class="nav-icon bi bi-speedometer"></i><p>Dashboard</p></a>
+                    <a href="{% url 'dashboard' %}" class="nav-link"><i class="bi bi-ui-checks-grid"></i><p>Dashboard</p></a>
                 </li>
                 
                 <!-------------------------------     Collect Order   ---------------------------------->
@@ -57,7 +57,7 @@
                 {% with request.resolver_match.url_name as url_name %}
                 <li class="nav-item {% if url_name == 'purchase_list' or url_name == 'purchase_return_list' %} menu-open {% endif %}">
                     <a href="#" class="nav-link {% if url_name == 'purchase_list' or url_name == 'purchase_return_list' %} active bg-primary {% endif %}">
-                        <i class="nav-icon bi bi-clipboard-fill"></i>
+                        <i class="bi bi-cart-check"></i>
                         <p>
                             Purchase
                             <i class="nav-arrow bi bi-chevron-right"></i>
@@ -94,7 +94,7 @@
 
                 <a href="#" class="nav-link {% if url_name == 'expense_list' or url_name == 'income_list' or url_name == 'supplier_payment_list' or url_name == 'customer_payment_list' or url_name == 'fund_transfer_list' %} active bg-primary {% endif %}">
                     
-                        <i class="nav-icon bi bi-clipboard-fill"></i>
+                        <i class="bi bi-currency-dollar"></i>
                         <p>
                             Finance
                             <i class="nav-arrow bi bi-chevron-right"></i>
@@ -153,7 +153,7 @@
                 {% with request.resolver_match.url_name as url_name %}
                 <li class="nav-item {% if url_name == 'sales_report' or url_name == 'product_report' or url_name == 'purchase_report' %} menu-open {% endif %}">
                     <a href="#" class="nav-link {% if url_name == 'sales_report' or url_name == 'product_report' or url_name == 'purchase_report' %} active bg-primary {% endif %}">
-                        <i class="nav-icon bi bi-clipboard-fill"></i>
+                        <i class="bi bi-repeat"></i>
                         <p>
                             Reports
                             <i class="nav-arrow bi bi-chevron-right"></i>
@@ -224,7 +224,7 @@
                 {% with request.resolver_match.url_name as url_name %}
                 <li class="nav-item {% if url_name in 'supplier customer expense_category income_category settings_list fund_list' %}menu-open{% endif %}">
                     <a href="#" class="nav-link {% if url_name in 'supplier customer expense_category income_category settings_list fund_list' %}active bg-primary{% endif %}">
-                        <i class="bi bi-box-seam"></i>
+                        <i class="bi bi-gear-fill"></i>
                         <p>
                             Basic Settings
                             <i class="nav-arrow bi bi-chevron-right"></i>
@@ -282,46 +282,47 @@
                 </li>
                 {% endwith %}
 
-
-
-
- <!-------------------------------------------- Auth ----------------------------------->
-                <!-- <li class="nav-item">
-                    <a href="#" class="nav-link">
-                        <i class="nav-icon bi bi-box-arrow-in-right"></i>
+                <!------------------------------------ settings  ------------------------------------>
+                {% with request.resolver_match.url_name as url_name %}
+                <li class="nav-item {% if url_name in 'user_list role_list permission_list' %}menu-open{% endif %}">
+                    <a href="#" class="nav-link {% if url_name in 'user_list role_list permission_list' %}active bg-primary{% endif %}">
+                        
+                        <i class="bi bi-person-gear"></i>
                         <p>
-                        Auth
-                        <i class="nav-arrow bi bi-chevron-right"></i>
+                            User Settings
+                            <i class="nav-arrow bi bi-chevron-right"></i>
                         </p>
                     </a>
                     <ul class="nav nav-treeview">
                         <li class="nav-item">
-                            <a href="#" class="nav-link">
-                                <i class="nav-icon bi bi-box-arrow-in-right"></i>
-                                <p>
-                                Version 1
-                                <i class="nav-arrow bi bi-chevron-right"></i>
-                                </p>
+                            <a href="{% url 'user_list' %}"
+                            class="nav-link {% if url_name == 'user_list' %}active bg-white text-dark{% endif %}">
+                                <i class="nav-icon bi bi-circle"></i>
+                                <p>Users</p>
                             </a>
-                            <ul class="nav nav-treeview">
-                                <li class="nav-item">
-                                    <a href="#" class="nav-link">
-                                        <i class="nav-icon bi bi-circle"></i>
-                                        <p>Login</p>
-                                    </a>
-                                </li>
-                                <li class="nav-item">
-                                    <a href="#" class="nav-link">
-                                        <i class="nav-icon bi bi-circle"></i>
-                                        <p>Register</p>
-                                    </a>
-                                </li>
-                            </ul>
+                        </li>
+
+                        <li class="nav-item">
+                            <a href="{% url 'role_list' %}"
+                            class="nav-link {% if url_name == 'role_list' %}active bg-white text-dark{% endif %}">
+                                <i class="nav-icon bi bi-circle"></i>
+                                <p>Roles</p>
+                            </a>
+                        </li>
+
+                        <li class="nav-item">
+                            <a href="{% url 'permission_list' %}"
+                            class="nav-link {% if url_name == 'permission_list' %}active bg-white text-dark{% endif %}">
+                                <i class="nav-icon bi bi-circle"></i>
+                                <p>Roles Permission</p>
+                            </a>
                         </li>
                     </ul>
-                </li> -->
+                </li>
+                {% endwith %}
+
 
             </ul>
         </nav>
       </div>
-    </aside>
+    </aside class="mb-4">

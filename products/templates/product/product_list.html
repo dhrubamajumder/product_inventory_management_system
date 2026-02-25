@@ -36,10 +36,12 @@
     <div class="card shadow-sm">
         <div class="card-body">
             <div class="d-flex justify-content-between align-items-center mb-3">
-               <h3 class="text-dark" style="font-family: 'Roboto', sans-serif;">Product List</h3>
-               <a href="{% url 'product_create' %}" class="btn btn-success">
+                <h3 class="text-dark" style="font-family: 'Roboto', sans-serif;">Product List</h3>
+                {% if request.user.is_superuser or 'product_create' in permissions_list %}
+                <a href="{% url 'product_create' %}" class="btn btn-success">
                    + Add Product
-               </a>
+                </a>
+                {% endif %}
            </div> <hr>
            
 {% comment %} <!------------------------------------------  pagination   -------------------------> {% endcomment %}
@@ -64,7 +66,9 @@
                         <th>Stock</th>
                         <th>Description</th>
                         <th class="text-center">Created</th>
+                        {% if permissions_list and 'product_update' in permissions_list or permissions_list and 'product_delete' in permissions_list %}
                         <th class="text-end">Actions</th>
+                        {% endif %}
                     </tr>
                 </thead>
                 <tbody>
@@ -94,6 +98,7 @@
                         </td>
                         <td>{{ product.description|default:"-" }}</td>
                         <td class="text-center">{{ product.created_at|date:"Y-m-d" }}</td>
+                        {% if permissions_list and 'product_update' in permissions_list or permissions_list and 'product_delete' in permissions_list %}
                         <td class="text-end">
                             <div class="dropdown">
                                 <button class="btn btn-sm " type="button" data-bs-toggle="dropdown" style="font-size: 22px;">
@@ -101,20 +106,25 @@
                                 </button>
 
                                 <ul class="dropdown-menu dropdown-menu-end">
+                                    {% if permissions_list and 'product_update' in permissions_list %}
                                     <li>
                                         <a class="dropdown-item" href="{% url 'product_update' product.id %}">
                                             ✏️ Edit
                                         </a>
                                     </li>
+                                    {% endif %}
+                                    {% if permissions_list and 'product_delete' in permissions_list %}
                                     <li>
                                         <form method="post" action="{% url 'product_delete' product.id %}" onsubmit="return confirm('Are you sure you want to delete this Product?');">
                                             {% csrf_token %}
                                             <button type="submit" class="dropdown-item text-danger">🗑️ Delete </button>
                                         </form>
                                     </li>
+                                    {% endif %}
                                 </ul>
                             </div>
                         </td>
+                        {% endif %}
                     </tr>
                     {% empty %}
                     <tr>

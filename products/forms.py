@@ -1,5 +1,5 @@
 from django import forms
-from . models import Category, Product, Customer, SystemSettings, Fund, Expense, OtherIncome, SupplierPayment, CustomerPayment, FundTransfer, Purchase, PurchaseItem
+from . models import Category, Product, Customer, SystemSettings, Fund, Expense, OtherIncome, SupplierPayment, CustomerPayment, FundTransfer, Purchase, PurchaseItem, Permission,Role, ExpenseCategory, IncomeCategory
 
 
 
@@ -38,6 +38,17 @@ class FundForm(forms.ModelForm):
         model = Fund
         fields = ['fund_name', 'fund_type', 'amount', 'description']
 
+class ExpenseCategoryForm(forms.ModelForm):
+    class Meta:
+        model = ExpenseCategory
+        fields = ['name']
+        widgets = {
+            'name': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Enter category name'})
+        }
+        labels = {
+            'name': 'Category Name'
+        }
+        
 
 class ExpenseForm(forms.ModelForm):
     date = forms.DateField(widget=forms.DateInput(attrs={'type': 'date'}))
@@ -54,6 +65,16 @@ class OtherIncomeForm(forms.ModelForm):
         model = OtherIncome
         fields = ['category', 'fund', 'amount', 'date', 'note']
         
+class IncomeCategoryForm(forms.ModelForm):
+    class Meta:
+        model = IncomeCategory
+        fields = ['name']
+        widgets = {
+            'name': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Enter income category name'})
+        }
+        labels = {
+            'name': 'Income Category Name'
+        }
         
 class SupplierPaymentForm(forms.ModelForm):
     class Meta:
@@ -98,4 +119,39 @@ class PurchaseItemForm(forms.ModelForm):
             raise forms.ValidationError("Quantity must be at least 1.")
         return quantity
 
+        
+        
+class PermissionForm(forms.ModelForm):
+    class Meta:
+        model = Permission
+        fields = ['name', 'group']
+        widgets = {
+            'name': forms.TextInput(attrs={'class':'form_control'}),
+            'group': forms.TextInput(attrs={'class':'form_control'}),
+        }
+        
+class RoleForm(forms.ModelForm):
+    name = forms.CharField(
+        max_length=50,
+        required=True,
+        label="Role Name",
+        widget=forms.TextInput(attrs={
+            'class': 'form-control',
+            'placeholder': 'Enter role name'
+        })
+    )
+
+    permissions = forms.ModelMultipleChoiceField(
+        queryset=Permission.objects.all(),
+        required=False,
+        label="Permissions",
+        widget=forms.CheckboxSelectMultiple(
+            attrs={'class': 'form-check-input'}
+        )
+    )
+
+    class Meta:
+        model = Role
+        fields = ['name', 'permissions']
+        
         

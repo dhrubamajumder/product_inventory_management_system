@@ -24,7 +24,9 @@
         <div class="card-body">
             <div class="d-flex justify-content-between mb-3">
                 <h4>Customers</h4>
+                {% if request.user.is_superuser or 'customer_create' in permissions_list %}
                 <a href="{% url 'customer_create' %}" class="btn btn-primary">+ Add Customer</a>
+                {% endif %}
             </div>
             <form method="get" class="d-inline-block mb-4">
                 <label>Data per page: </label>
@@ -45,7 +47,9 @@
                         <th>Phone</th>
                         <th>Address</th>
                         <th>Note</th>
+                        {% if request.user.is_superuser or 'customer_update' in permissions_list or 'customer_delete' in permissions_list %}
                         <th class="text-end p-2">Actions</th>
+                        {% endif %}
                     </tr>
                 </thead>
                 <tbody>
@@ -57,6 +61,7 @@
                         <td>{{ c.phone }}</td>
                         <td>{{ c.address }}</td>
                         <td>{{ c.note }}</td>
+                        {% if request.user.is_superuser or 'customer_update' in permissions_list or 'customer_delete' in permissions_list %}
                         <td class="text-end">
                             <div class="dropdown">
                                 <button class="btn btn-sm " type="button" data-bs-toggle="dropdown" style="font-size: 22px;">
@@ -64,20 +69,25 @@
                                 </button>
 
                                 <ul class="dropdown-menu dropdown-menu-end">
+                                    {% if permissions_list and 'customer_update' in permissions_list %}
                                     <li>
                                         <a class="dropdown-item" href="{% url 'customer_update' c.id %}">
                                             ✏️ Edit
                                         </a>
                                     </li>
+                                    {% endif %}
+                                    {% if permissions_list and 'customer_delete' in permissions_list %}
                                     <li>
                                         <form method="post" action="{% url 'customer_delete' c.id %}" onsubmit="return confirm('Are you sure you want to delete this customer?');">
                                             {% csrf_token %}
                                             <button type="submit" class="dropdown-item text-danger">🗑️ Delete </button>
                                         </form>
                                     </li>
+                                    {% endif %}
                                 </ul>
                             </div>
                         </td>
+                        {% endif %}
                     </tr>
                     {% empty %}
                     <tr>

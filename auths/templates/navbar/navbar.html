@@ -49,16 +49,18 @@
                 <li class="nav-item dropdown user-menu">
                     <a href="#" class="nav-link dropdown-toggle" data-bs-toggle="dropdown">
                         <img src="{% static 'images/Python-Symbol.png' %}" class="user-image rounded-circle shadow" alt="User Image"/>
-                        <span class="d-none d-md-inline">Profile</span>
+                        <span class="d-none d-md-inline">{{ user.username }}</span>
                     </a>
                 
                     <ul class="dropdown-menu dropdown-menu-lg dropdown-menu-end">
                         <!--begin::User Image-->
-                        <li class="user-header text-bg-primary">
-                            <p>
-                                Alexander Pierce - Web Developer
-                                <small>Member since Nov. 2023</small>
-                            </p>
+                        <li class="user-header">
+
+                            <div class="text-center mb-4 mt-3">
+                                <div class="text-dark"> {{ user.username }}<span class="text-success">●</span></div>
+                                <p class="text-dark">Welcome: <span class="text-dark">{{ user.userprofile.role.name }}</span> </p>
+                            </div>
+        
                         </li>
                         <!--end::User Image-->
 
@@ -66,14 +68,14 @@
                         <li class="user-body">
                         <!--begin::Row-->
                         <div class="row">
-                            <div class="col-4 text-center">
-                            <a href="#">Followers</a>
+                            <div class="col-5 text-center">
+                            <a href="#" class="btn btn-primary">Followers</a>
+                            </div>
+                            <div class="col-3 text-center">
+                            <a href="#" class="btn btn-primary">Sales</a>
                             </div>
                             <div class="col-4 text-center">
-                            <a href="#">Sales</a>
-                            </div>
-                            <div class="col-4 text-center">
-                            <a href="#">Friends</a>
+                            <a href="#" class="btn btn-primary">Friends</a>
                             </div>
                         </div>
                         <!--end::Row-->
@@ -82,7 +84,7 @@
                         <!--begin::Menu Footer-->
                         <li class="user-footer">
                         <a href="#" class="btn btn-outline-secondary">Profile</a>
-                        <a href="#" class="btn btn-outline-danger float-end">Sign out</a>
+                        <a href="{% url 'logout' %}" class="btn btn-outline-danger float-end">Sign out</a>
                         </li>
                         <!--end::Menu Footer-->
                     </ul>

@@ -9,16 +9,18 @@
     <span style="color: #39a5b8;"><b>{% if product %}Product Update{% else %}Purchase List{% endif %}</b></span>
 </div>
 
-<div class="container mt-">
-    <!-- PRODUCT TABLE -->
+<div class="container">
+    <!-- Purchase TABLE -->
     <div class="card shadow-sm">
         <div class="card-body">
            
             <div class="d-flex justify-content-between align-items-center">
                 <h3 class="text-dark" style="font-family: 'Roboto', sans-serif;">Purchase List</h3>
+                {% if request.user.is_superuser or 'purchase_create' in permissions_list %}
                 <a href="{% url 'purchase_create' %}" class="btn btn-primary">
-                    + Add Product
+                    + Add Purchase
                 </a>
+                {% endif %}
             </div> <hr>
 
             <form method="get" class="d-inline-block mb-3">

@@ -1,6 +1,6 @@
 from django.shortcuts import render, redirect, get_object_or_404
-from . models import Category, Product, ExpenseCategory, IncomeCategory, Customer, Supplier, SystemSettings, Fund, Expense, OtherIncome, SupplierPayment, CustomerPayment, FundTransfer, Order, OrderItem, PurchaseItem, Purchase, Stock, PurchaseReturn
-from . forms import CategoryForm, ProductForm, CustomerForm, SystemSettingsForm, FundForm, ExpenseForm, OtherIncomeForm, SupplierPaymentForm, CustomerPaymentForm, FundTransferForm, PurchaseForm, PurchaseItemForm
+from . models import Category, Product, ExpenseCategory, IncomeCategory, Customer, Supplier, SystemSettings, Fund, Expense, OtherIncome, SupplierPayment, CustomerPayment, FundTransfer, Order, OrderItem, PurchaseItem, Purchase, Stock, PurchaseReturn, Role, Permission, UserProfile
+from . forms import CategoryForm, ProductForm, CustomerForm, SystemSettingsForm, FundForm, ExpenseForm, OtherIncomeForm, SupplierPaymentForm, CustomerPaymentForm, FundTransferForm, PurchaseForm, PurchaseItemForm, RoleForm, PermissionForm, ExpenseCategoryForm, IncomeCategoryForm
 from django.contrib import messages
 from django.forms import modelformset_factory
 from django.forms import modelform_factory
@@ -11,28 +11,42 @@ from decimal import Decimal
 from django.db import transaction
 from django.db.models import Sum
 from django.db.models import Q, F
+from django.contrib.auth.models import User
+from .decorators import get_role_permissions, admin_required, staff_or_admin_required, get_role_permissions, role_permission_required
+from django.contrib.auth import get_user_model
+from collections import defaultdict
+from django.contrib.auth.decorators import login_required
 
-
-# Create your views here.
 
 def index(request):
     return render(request, 'index.html')
 
 # ------------------------------------   Category List  ------------------------------------------
+@login_required(login_url='/login/')
+@role_permission_required('category_view')
 def category_list(request):
     categories = Category.objects.all().order_by('-id')
     page_obj = paginate_queryset(request, categories, per_page=10)
+    role, permissions, permissions_list = get_role_permissions(request.user)
     form = CategoryForm()
     if request.method == "POST":
+        if not request.user.is_superuser and 'category_create' not in permissions_list:
+            return render(request, '403.html', status=403)
         form = CategoryForm(request.POST)
         if form.is_valid():
             form.save()
             messages.success(request, "✅ Category added successfully")
             return redirect('category_list')
-    context = {'form': form, 'page_obj': page_obj, 'per_page': request.GET.get('per_page', 10),}
+    context = {
+        'form': form,
+        'permissions': permissions,
+        'permissions_list': permissions_list or [],
+        'page_obj': page_obj,
+        'per_page': request.GET.get('per_page', 10),}
     return render(request, 'category/category_list.html', context)
 
 
+@login_required(login_url='/login/')
 def category_update(request, id):
     category = get_object_or_404(Category, id=id)
     if request.method == "POST":
@@ -45,7 +59,7 @@ def category_update(request, id):
         form = CategoryForm(instance=category)
     return render(request, 'category/category_list.html', {'form': form, 'category': category})
 
-
+@login_required(login_url='/login/')
 def category_delete(request, id):
     category = get_object_or_404(Category, id=id)
     if request.method == "POST":
@@ -55,14 +69,19 @@ def category_delete(request, id):
 
 
 # -------------------------------------------------------------   Product   ---------------------------------------------
+@login_required(login_url='/login/')
+@role_permission_required('product_view')
 def product_list(request):
     products = Product.objects.all().order_by('-id')
     per_page = request.GET.get('per_page', 10)
     paginator = Paginator(products, per_page)
     page_number = request.GET.get('page')
     page_obj = paginator.get_page(page_number)
-    return render(request, 'product/product_list.html', {'page_obj': page_obj, 'per_page': per_page,})
+    role, permissions, permissions_list = get_role_permissions(request.user)
+    return render(request, 'product/product_list.html', {'page_obj': page_obj, 'per_page': per_page, 'permissions':permissions, 'permissions_list':permissions_list})
     
+@login_required(login_url='/login/')
+@role_permission_required('product_create')
 def product_create(request):
     categories = Category.objects.all()
     if request.method == "POST":
@@ -76,6 +95,8 @@ def product_create(request):
     context = {'form': form, 'categories': categories,}
     return render(request, 'product/product_form.html', context)
 
+@login_required(login_url='/login/')
+@role_permission_required('product_update')
 def product_update(request, pk):
     product = get_object_or_404(Product, pk=pk)
     categories = Category.objects.all()  
@@ -93,6 +114,8 @@ def product_update(request, pk):
         'categories': categories,}
     return render(request, 'product/product_form.html', context)
 
+@login_required(login_url='/login/')
+@role_permission_required('product_delete')
 def product_delete(request, pk):
     product = get_object_or_404(Product, pk=pk)
     if request.method == "POST":
@@ -102,22 +125,36 @@ def product_delete(request, pk):
     
 
 # ---------------------------------------------------------   Expense Category View  -----------------------------------------------
+@login_required(login_url='/login/')
+@role_permission_required('expense_category_view')
 def expense_category_view(request):
+    # Get all categories and paginate
+    categories = ExpenseCategory.objects.all().order_by('-id')
+    page_obj = paginate_queryset(request, categories, per_page=10)
+    # Get role and permissions for the current user
+    role, permissions, permissions_list = get_role_permissions(request.user)
+    form = ExpenseCategoryForm()
     if request.method == "POST":
-        name = request.POST.get("name")
-        if name:
-            ExpenseCategory.objects.create(name=name)
-            return redirect("expense_category")
-    ex_categories = ExpenseCategory.objects.all().order_by('-id')
-    page_obj = paginate_queryset(request, ex_categories, per_page=10)
+        # Check if user has create permission
+        if not request.user.is_superuser and 'expense_category_create' not in permissions_list:
+            return render(request, '403.html', status=403)
+        form = ExpenseCategoryForm(request.POST)
+        if form.is_valid():
+            form.save()
+            messages.success(request, "✅ Expense category added successfully")
+            return redirect('expense_category_view')
     context = {
-        'categories': ex_categories,
+        'form': form,
+        'permissions': permissions,
+        'permissions_list': permissions_list or [],
         'page_obj': page_obj,
-        'per_page': request.GET.get('per_page', 10), 
+        'per_page': request.GET.get('per_page', 10),
     }
     return render(request, 'expence/expense_category.html', context)
 
 
+
+@login_required(login_url='/login/')
 def expense_category_update(request, id):
     category = get_object_or_404(ExpenseCategory, id=id)
     if request.method == "POST":
@@ -126,7 +163,8 @@ def expense_category_update(request, id):
             category.name = name
             category.save()
         return redirect("expense_category")
-    
+
+@login_required(login_url='/login/')
 def expense_category_delete(request, id):
     if request.method == "POST":
         ExpenseCategory.objects.filter(id=id).delete()
@@ -135,28 +173,37 @@ def expense_category_delete(request, id):
 
 
 # -------------------------------------------  Other Income Category View  -----------------------------------------------------------
+
+@login_required(login_url='/login/')
+@role_permission_required('other_income_category_view')
 def income_category_view(request):
-    # CREATE
-    if request.method == "POST":
-        name = request.POST.get("name")
-        if name:
-            IncomeCategory.objects.create(name=name)
-            messages.success(request, "✅ Income category added successfully")
-            return redirect("income_category")
-    
-    # LIST
     categories = IncomeCategory.objects.all().order_by('-id')
     per_page = request.GET.get('per_page', 10)
     paginator = Paginator(categories, per_page)
     page_number = request.GET.get('page')
     page_obj = paginator.get_page(page_number)
-    
+    role, permissions, permissions_list = get_role_permissions(request.user)
+    form = IncomeCategoryForm()
+    if request.method == "POST":
+        # Permission check
+        if not request.user.is_superuser and 'other_income_category_create' not in permissions_list:
+            return render(request, '403.html', status=403)
+        form = IncomeCategoryForm(request.POST)
+        if form.is_valid():
+            form.save()
+            messages.success(request, "✅ Income category added successfully")
+            return redirect('income_category_view')
     context = {
+        'form': form,
+        'permissions': permissions,
+        'permissions_list': permissions_list or [],
         'page_obj': page_obj,
         'per_page': per_page,
     }
     return render(request, 'other_income/income_category.html', context)
 
+
+@login_required(login_url='/login/')
 def income_category_update(request, id):
     category = get_object_or_404(IncomeCategory, id=id)
     if request.method == "POST":
@@ -165,6 +212,7 @@ def income_category_update(request, id):
     return redirect("income_category")
 
 
+@login_required(login_url='/login/')
 def income_category_delete(request, id):
     if request.method == "POST":
         IncomeCategory.objects.filter(id=id).delete()
@@ -173,21 +221,31 @@ def income_category_delete(request, id):
 
 
 # ------------------------------------------------------  Supplier View  -----------------------------------------------
+
+@login_required(login_url='/login/')
+@role_permission_required('supplier_view')
 def supplier_list(request):
     suppliers = Supplier.objects.all().order_by('-id')
     per_page = request.GET.get('per_page', 10)
     paginator = Paginator(suppliers, per_page)
     page_number = request.GET.get('page')
     page_obj = paginator.get_page(page_number)
+    role, permissions, permissions_list = get_role_permissions(request.user)
     
     context = {
         'page_obj': page_obj,
-        'per_page': per_page,}
+        'per_page': per_page,
+        'permissions':permissions,
+        'permissions_list':permissions_list}
     return render(request, 'supplier/suppliers.html', context)
+
 
 # -----------------------------
 # Supplier Create View
 # -----------------------------
+
+@login_required(login_url='/login/')
+@role_permission_required('supplier_create')
 def supplier_create(request):
     if request.method == "POST":
         Supplier.objects.create(
@@ -202,6 +260,7 @@ def supplier_create(request):
 # -----------------------------
 # Supplier Update View
 # -----------------------------
+@login_required(login_url='/login/')
 def supplier_update(request, pk):
     supplier = get_object_or_404(Supplier, pk=pk)
     
@@ -218,6 +277,7 @@ def supplier_update(request, pk):
 # -----------------------------
 # Supplier Delete View
 # -----------------------------
+@login_required(login_url='/login/')
 def supplier_delete(request, pk):
     supplier = get_object_or_404(Supplier, pk=pk)
     if request.method == "POST":
@@ -227,6 +287,8 @@ def supplier_delete(request, pk):
 
 # --------------------------------------------------------------  Customer View -----------------------------------------------------------
 
+@login_required(login_url='/login/')
+@role_permission_required('customer_view')
 def customer_list(request):
     customers = Customer.objects.all().order_by('-id')
     per_page = request.GET.get('per_page', 10)
@@ -234,18 +296,37 @@ def customer_list(request):
         per_page = int(per_page)
     except ValueError:
         per_page = 10
+
     paginator = Paginator(customers, per_page)
     page_number = request.GET.get('page')
     page_obj = paginator.get_page(page_number)
+    role, permissions, permissions_list = get_role_permissions(request.user)
+    form = CustomerForm()
+    # CREATE customer if POST
+    if request.method == "POST":
+        # Only superusers or users with 'customer_create' permission can create
+        if not request.user.is_superuser and 'customer_create' not in permissions_list:
+            return render(request, '403.html', status=403)
+        form = CustomerForm(request.POST)
+        if form.is_valid():
+            form.save()
+            messages.success(request, "✅ Customer added successfully")
+            return redirect('customer_list')
     context = {
+        'form': form,
+        'permissions': permissions,
+        'permissions_list': permissions_list or [],
         'page_obj': page_obj,
-        'per_page': per_page,
-    }
+        'per_page': per_page,}
     return render(request, 'customer/customer.html', context)
+
 
 # ---------------------------
 # 2. Customer Create View
 # ---------------------------
+
+@login_required(login_url='/login/')
+@role_permission_required('customer_create')
 def customer_create(request):
     if request.method == "POST":
         form = CustomerForm(request.POST)
@@ -261,6 +342,8 @@ def customer_create(request):
 # ---------------------------
 # 3. Customer Update View
 # ---------------------------
+
+@login_required(login_url='/login/')
 def customer_update(request, pk):
     customer = get_object_or_404(Customer, pk=pk)
     if request.method == "POST":
@@ -277,6 +360,8 @@ def customer_update(request, pk):
 # ---------------------------
 # 4. Customer Delete View
 # ---------------------------
+
+@login_required(login_url='/login/')
 def customer_delete(request, pk):
     if request.method == "POST":
         Customer.objects.filter(pk=pk).delete()
@@ -288,12 +373,17 @@ def customer_delete(request, pk):
 # ===============================      Settings   =================================================
 # =================================================================================================
 
+@login_required(login_url='/login/')
+@role_permission_required('settings_view')
 def settings_list(request):
+    role, permissions, permissions_list = get_role_permissions(request.user)
     settings_instance = SystemSettings.objects.first()
-    return render(request, 'settings/setting_list.html', {'settings': settings_instance})
+    return render(request, 'settings/setting_list.html', {'settings': settings_instance, 'permissions':permissions, 'permissions_list':permissions_list})
 
 
 # Create new system settings
+@login_required(login_url='/login/')
+@role_permission_required('settings_create')
 def setting_create(request):
     if SystemSettings.objects.exists():
         return redirect('settings_list')
@@ -312,6 +402,9 @@ def setting_create(request):
     print(form.errors)    
     return render(request, 'settings/setting_form.html', {'form': form, 'title': 'Create System Settings'})
       
+
+@login_required(login_url='/login/')
+@role_permission_required('settings_update')
 def setting_update(request, pk):
     settings_update = get_object_or_404(SystemSettings, pk=pk)
     if request.method == "POST":
@@ -329,6 +422,8 @@ def setting_update(request, pk):
 
 
 # -=====================================================   Fund Create  ================================
+
+@login_required(login_url='/login/')
 def fund_list(request):
     per_page = int(request.GET.get('per_page', 10))
     page = request.GET.get('page', 1)
@@ -337,14 +432,19 @@ def fund_list(request):
 
     paginator = Paginator(funds, per_page)
     page_obj = paginator.get_page(page)
+    role, permissions, permissions_list = get_role_permissions(request.user)
 
     return render(request, 'fund/fund_list.html', {
         'page_obj': page_obj,
         'per_page': per_page,
+        'permissions':permissions,
+        'permissions_list':permissions_list
     })
     
     
 # Create
+@login_required(login_url='/login/')
+@role_permission_required('fund_create')
 def fund_create(request):
     form = FundForm(request.POST or None)
     if form.is_valid():
@@ -353,6 +453,8 @@ def fund_create(request):
     return render(request, 'fund/fund_form.html', {'form': form})
 
 # Update
+
+@login_required(login_url='/login/')
 def fund_update(request, id):
     fund = get_object_or_404(Fund, id=id)
     form = FundForm(request.POST or None, instance=fund)
@@ -362,6 +464,7 @@ def fund_update(request, id):
     return render(request, 'fund/fund_form.html', {'form': form, 'fund':fund})
 
 # Delete
+@login_required(login_url='/login/')
 def fund_delete(request, id):
     fund = get_object_or_404(Fund, id=id)
     fund.delete()
@@ -370,6 +473,8 @@ def fund_delete(request, id):
 
 # ===========================   Expence Create  ===========================
 
+@login_required(login_url='/login/')
+@role_permission_required('expense_view')
 def expense_list(request):
     expenses = Expense.objects.all().order_by('-id')
     per_page = request.GET.get('per_page', 10)
@@ -380,13 +485,20 @@ def expense_list(request):
     paginator = Paginator(expenses, per_page)
     page_number = request.GET.get('page')
     page_obj = paginator.get_page(page_number)
+    role, permissions, permissions_list = get_role_permissions(request.user)
 
     context = {
         'page_obj': page_obj,
-        'per_page': per_page,}
+        'per_page': per_page,
+        'permissions':permissions,
+        'permissions_list':permissions_list,
+        }
     return render(request, 'expence/expence_list.html', context)
 
+
 # 2️⃣ Create Expense
+@login_required(login_url='/login/')
+@role_permission_required('expense_create')
 def expense_create(request):
     form = ExpenseForm(request.POST or None)
     if request.method == 'POST' and form.is_valid():
@@ -403,6 +515,7 @@ def expense_create(request):
 
 
 # Update Expense
+@login_required(login_url='/login/')
 def expense_update(request, id):
     expense = get_object_or_404(Expense, id=id)
     form = ExpenseForm(request.POST or None, instance=expense)
@@ -419,6 +532,7 @@ def expense_update(request, id):
     return render(request, 'expence/expence_form.html', context)
 
 # 4️⃣ Delete Expense
+@login_required(login_url='/login/')
 def expense_delete(request, id):
     expense = get_object_or_404(Expense, id=id)
     expense.delete()
@@ -426,7 +540,9 @@ def expense_delete(request, id):
 
 
 
-# -=====================================================   Fund Create  ===========================================
+# -=====================================================   Other Income List  ===========================================
+@login_required(login_url='/login/')
+@role_permission_required('other_income_view')
 def income_list(request):
     income = OtherIncome.objects.all().order_by('-id')
     per_page = request.GET.get('per_page', 10)
@@ -437,11 +553,17 @@ def income_list(request):
     paginator = Paginator(income, per_page)
     page_number = request.GET.get('page')
     page_obj = paginator.get_page(page_number)
+    role, permissions, permissions_list = get_role_permissions(request.user)
     context = {
+        'permissions':permissions,
+        'permissions_list':permissions_list,
         'page_obj': page_obj,
         'per_page': per_page,}
     return render(request, 'other_income/income_list.html', context)
 
+
+@login_required(login_url='/login/')
+@role_permission_required('income_create')
 def income_create(request):
     form = OtherIncomeForm(request.POST or None)
     if request.method == 'POST' and form.is_valid():
@@ -457,6 +579,7 @@ def income_create(request):
     return render(request, 'other_income/income_form.html', context)
 
 # Update income
+@login_required(login_url='/login/')
 def income_update(request, id):
     expense = get_object_or_404(OtherIncome, id=id)
     form = OtherIncomeForm(request.POST or None, instance=expense)
@@ -474,6 +597,7 @@ def income_update(request, id):
 
 
 # 4️⃣ Delete Expense
+@login_required(login_url='/login/')
 def income_delete(request, id):
     expense = get_object_or_404(OtherIncome, id=id)
     expense.delete()
@@ -481,6 +605,8 @@ def income_delete(request, id):
 
 
 # -=====================================================   Supplier Payment Create  ===========================================
+@login_required(login_url='/login/')
+@role_permission_required('supplier_payment_view')
 def payment_list(request):
     supplier = SupplierPayment.objects.all().order_by('-id')
     per_page = request.GET.get('per_page', 10)
@@ -491,14 +617,18 @@ def payment_list(request):
     paginator = Paginator(supplier, per_page)
     page_number = request.GET.get('page')
     page_obj = paginator.get_page(page_number)
+    role, permissions, permissions_list = get_role_permissions(request.user)
     context = {
+        'permissions':permissions,
+        'permissions_list':permissions_list,
         'page_obj': page_obj,
         'per_page': per_page,
-        'supplier':supplier,
-        }
+        'supplier':supplier,}
     return render(request, 'supplier/payment_list.html', context)
 
 
+@login_required(login_url='/login/')
+@role_permission_required('supplier_payment_create')
 def payment_create(request):
     form = SupplierPaymentForm(request.POST or None)
     if request.method == 'POST' and form.is_valid():
@@ -514,6 +644,7 @@ def payment_create(request):
     return render(request, 'supplier/payment_form.html', context)
 
 
+@login_required(login_url='/login/')
 def payment_update(request, id):
     expense = get_object_or_404(SupplierPayment, id=id)
     form = SupplierPaymentForm(request.POST or None, instance=expense)
@@ -532,6 +663,7 @@ def payment_update(request, id):
 
 
 # 4️⃣ Delete payment
+@login_required(login_url='/login/')
 def payment_delete(request, id):
     expense = get_object_or_404(SupplierPayment, id=id)
     expense.delete()
@@ -540,6 +672,8 @@ def payment_delete(request, id):
 
 
 # -=====================================================   Customer Payment Create  ===========================================
+@login_required(login_url='/login/')
+@role_permission_required('customer_payment_view')
 def customer_payment_list(request):
     customer = CustomerPayment.objects.all().order_by('-id')
     per_page = request.GET.get('per_page', 10)
@@ -550,12 +684,17 @@ def customer_payment_list(request):
     paginator = Paginator(customer, per_page)
     page_number = request.GET.get('page')
     page_obj = paginator.get_page(page_number)
+    role, permissions, permissions_list = get_role_permissions(request.user)
     context = {
+        'permissions':permissions,
+        'permissions_list':permissions_list,
         'page_obj': page_obj,
         'per_page': per_page,}
     return render(request, 'customer/payment_list.html', context)
 
 
+@login_required(login_url='/login/')
+@role_permission_required('customer_payment_create')
 def customer_payment_create(request):
     form = CustomerPaymentForm(request.POST or None)
     if request.method == 'POST' and form.is_valid():
@@ -571,6 +710,7 @@ def customer_payment_create(request):
     return render(request, 'customer/payment_form.html', context)
 
 
+@login_required(login_url='/login/')
 def customer_payment_update(request, id):
     payment = get_object_or_404(CustomerPayment, id=id)
     form = CustomerPaymentForm(request.POST or None, instance=payment)
@@ -588,6 +728,7 @@ def customer_payment_update(request, id):
 
 
 # 4️⃣ Delete payment
+@login_required(login_url='/login/')
 def customer_payment_delete(request, id):
     expense = get_object_or_404(CustomerPayment, id=id)
     expense.delete()
@@ -596,6 +737,8 @@ def customer_payment_delete(request, id):
 
 # -=====================================================   Fund Transfer List  ===========================================
 
+@login_required(login_url='/login/')
+@role_permission_required('fund_transfer_view')
 def fund_transfer_list(request):
     transfers = FundTransfer.objects.all().order_by('-id')
     per_page = request.GET.get('per_page', 10)
@@ -606,12 +749,17 @@ def fund_transfer_list(request):
     paginator = Paginator(transfers, per_page)
     page_number = request.GET.get('page')
     page_obj = paginator.get_page(page_number)
+    role, permissions, permissions_list = get_role_permissions(request.user)
     context = {
+        'permissions':permissions,
+        'permissions_list':permissions_list,
         'page_obj': page_obj,
         'per_page': per_page,}
     return render(request, 'fund/fund_tran_list.html', context)
 
 
+@login_required(login_url='/login/')
+@role_permission_required('fund_transfer_create')
 def fund_transfer_create(request):
     form = FundTransferForm(request.POST or None)
     funds = Fund.objects.filter(amount__gt=0)
@@ -657,6 +805,7 @@ def fund_transfer_create(request):
     return render(request, 'fund/fund_tran_form.html', context)
 
 
+@login_required(login_url='/login/')
 def fund_transfer_update(request, pk):
     transfer = get_object_or_404(FundTransfer, pk=pk)
     form = FundTransferForm(request.POST or None, instance=transfer)
@@ -728,6 +877,7 @@ def fund_transfer_update(request, pk):
     })
 
 
+@login_required(login_url='/login/')
 def fund_transfer_delete(request, id):
     transfer = get_object_or_404(FundTransfer, id=id)
     transfer.delete()
@@ -739,14 +889,19 @@ def fund_transfer_delete(request, id):
 
 # -------------------------------------------    Purchase Create    ------------------------------------------------------------
 
+@login_required(login_url='/login/')
+@role_permission_required('purchase_view')
 def purchase_list(request):
-    per_page = int(request.GET.get('per_page', 10))  # ডিফল্ট 10
+    per_page = int(request.GET.get('per_page', 10))  
     page = request.GET.get('page', 1)
     purchases = Purchase.objects.all().order_by('-purchase_date')  # fresh queryset
     paginator = Paginator(purchases, per_page)
     purchase_item = PurchaseItem.objects.all()
     page_obj = paginator.get_page(page)
+    role, permissions, permissions_list = get_role_permissions(request.user)
     context = {
+        'permissions':permissions,
+        'permissions_list':permissions_list,
         'page_obj': page_obj,
         'per_page': per_page,
         'purchase_item':purchase_item
@@ -754,6 +909,8 @@ def purchase_list(request):
     return render(request, 'purchase/purchase_list.html', context)
 
 
+@login_required(login_url='/login/')
+@role_permission_required('purchase_create')
 def purchase_create(request):
     if request.method == 'POST':
         form = PurchaseForm(request.POST)
@@ -801,6 +958,7 @@ def purchase_create(request):
     return render(request, 'purchase/purchase_form.html', context)
 
 
+@login_required(login_url='/login/')
 def purchase_update(request, id):
     purchase = get_object_or_404(Purchase, id=id)
     PurchaseItemFormSet = modelformset_factory(PurchaseItem, form=PurchaseItemForm, extra=0, can_delete=True)
@@ -857,13 +1015,15 @@ def purchase_update(request, id):
 
 
 # Delete Purchase
+@login_required(login_url='/login/')
 def purchase_delete(request, id):
     purchase = get_object_or_404(Purchase, id=id)
     purchase.delete()
     return redirect('purchase_list')
 
 
-
+@login_required(login_url='/login/')
+@role_permission_required('purchase_return_create')
 @transaction.atomic
 def purchase_return(request):
     if request.method == 'POST':
@@ -895,15 +1055,20 @@ def purchase_return(request):
     return render(request, 'purchase/purchase_return.html', context)
 
 
+@login_required(login_url='/login/')
+@role_permission_required('purchase_return_view')
 def purchase_return_list(request):
-    per_page = int(request.GET.get('per_page', 10))  # ডিফল্ট 10
+    per_page = int(request.GET.get('per_page', 10))  
     page = request.GET.get('page', 1)
     qs = PurchaseReturn.objects.select_related(
         'purchase', 'product', 'created_by', 'purchase__supplier'
     ).order_by('-id')
     paginator = Paginator(qs, per_page)
     page_obj = paginator.get_page(page)
+    role, permissions, permissions_list = get_role_permissions(request.user)
     context = {
+        'permissions':permissions,
+        'permissions_list':permissions_list,
         'page_obj': page_obj,
         'per_page': per_page,
     }
@@ -912,6 +1077,7 @@ def purchase_return_list(request):
 # ===================================    Pending Order    =======================================================
 
     
+@login_required(login_url='/login/')
 def pending_order_list(request):
     per_page = int(request.GET.get('per_page', 10)) 
     page = request.GET.get('page', 1)
@@ -928,7 +1094,7 @@ def pending_order_list(request):
     return render(request, 'collect_order/pending_order.html', context)
 
 
-    
+@login_required(login_url='/login/')
 def accept_order(request, order_id):
     order = Order.objects.get(id=order_id, status='pending')
     order.status = 'completed'
@@ -940,7 +1106,7 @@ def accept_order(request, order_id):
 
 # =================================================  Collect Order  ===========================================
 
-
+@login_required(login_url='/login/')
 def order_list(request, category_id=None):
     categories = Category.objects.all()
     funds = Fund.objects.all()
@@ -958,7 +1124,7 @@ def order_list(request, category_id=None):
         'funds': funds}
     return render(request, 'collect_order/order_list.html', context)
 
-
+@login_required(login_url='/login/')
 def create_collect_order(request):
     if request.method == 'POST':
         table = request.POST.get('table')
@@ -1047,6 +1213,7 @@ def create_collect_order(request):
     
 
 # ===============================   Sales Report =======================
+@login_required(login_url='/login/')
 def sales_report_list(request):
     orders = Order.objects.filter(status='completed').order_by('-created_at')
     per_page = request.GET.get('per_page', 10)
@@ -1068,7 +1235,7 @@ def sales_report_list(request):
     return render(request, 'stock/stock_list.html', context)
     
     
-    
+@login_required(login_url='/login/')
 def purchase_report(request):
     purchases = Purchase.objects.prefetch_related('items', 'supplier').all().order_by('-purchase_date')
     per_page = request.GET.get('per_page')
@@ -1086,5 +1253,214 @@ def purchase_report(request):
         'per_page': per_page,}
     return render(request, 'purchase/purchase_report.html', context)
 
+# =================================  User List  ==============================================
+# def user_list(request):
+#     role, permissions, permission_list = get_role_permissions(request.user)
+#     users = User.objects.all().order_by('-id')
+#     return render(request, 'user/user_list.html', {'users': users, 'permissions_list': permission_list, 'permissions':permissions, 'role':role})
+User = get_user_model()
+@login_required(login_url='/login/')
+@role_permission_required('user_view')
+def user_list(request):
+    users = (
+        User.objects
+        .filter(is_active=True)
+        .select_related('userprofile')   # 🔥 role fast load
+        .order_by('-id')
+    )
+    role, permissions, permissions_list = get_role_permissions(request.user)
+    return render(request, 'user/user_list.html', {
+        'users': users,
+        'permissions':permissions,
+        'permissions_list':permissions_list,
+    })
+    
+
+@login_required(login_url='/login/')
+@role_permission_required('user_create')
+def add_user(request):
+    roles = Role.objects.all()
+    superuser_role = Role.objects.filter(name='superuser').first()
+    superuser_exists = False
+    if superuser_role:
+        superuser_exists = UserProfile.objects.filter(role=superuser_role).exists()
+    if request.method == 'POST':
+        username = request.POST['username'].strip()
+        email = request.POST['email'].strip()
+        password = request.POST['password']
+        role_id = request.POST.get('role')
+        if User.objects.filter(username=username).exists():
+            messages.error(request, "Username already registered.")
+            return redirect('add_user')
+        if User.objects.filter(email=email).exists():
+            messages.error(request, "Email already registered.")
+            return redirect('add_user')
+        if (
+            superuser_role and
+            role_id and
+            int(role_id) == superuser_role.id and
+            superuser_exists):
+            messages.error(request, "Superuser already exists. Cannot create another one.")
+            return redirect('add_user')
+        user = User.objects.create_user(
+            username=username,
+            email=email,
+            password=password)
+        role = Role.objects.get(id=role_id) if role_id else None
+        UserProfile.objects.create(user=user, role=role)
+        messages.success(request, "User created successfully!")
+        return redirect('user_list')
+    return render(request,'user/add_user.html',{'roles': roles,'superuser_exists': superuser_exists})
 
 
+@login_required(login_url='/login/')
+def edit_user(request, id):
+    target_user = User.objects.get(id=id)
+    superuser_role = Role.objects.filter(name='SuperUser').first()
+    superuser_exists = False
+    if superuser_role:
+        superuser_exists = UserProfile.objects.filter(role=superuser_role).exclude(user=target_user).exists()
+    if request.method == 'POST':
+        username = request.POST['username']
+        email = request.POST['email']
+        password = request.POST.get('password')
+        role_id = request.POST.get('role')
+        target_user.username = username
+        target_user.email = email
+        if password:
+            target_user.set_password(password)
+        target_user.save()
+        if role_id:
+            selected_role = Role.objects.get(id=role_id)
+            if selected_role.name == 'SuperUser' and superuser_exists:
+                messages.error(request, "Superuser role is already assigned. Cannot assign again.")
+                return redirect('edit_user', user_id=id)
+
+            profile, created = UserProfile.objects.get_or_create(user=target_user)
+            profile.role = selected_role
+            profile.save()
+
+
+        messages.success(request, "User updated successfully!")
+        return redirect('user_list')
+    roles = Role.objects.all()
+    if superuser_role and superuser_exists:
+        roles = roles.exclude(id=superuser_role.id)
+    return render(request, 'user/add_user.html', {'roles': roles,'target_user': target_user,'superuser_exists': superuser_exists})
+
+
+@login_required(login_url='/login/')
+def delete_user(request, id):
+    user = get_object_or_404(User, id=id)
+    if request.method == 'POST':
+        user.delete()
+        return redirect('user_list')
+    
+
+
+# ----------------------------------------------------------------------------------- 
+# ----------------------------------------  Role  List  ------------------------------------------- 
+# --------------------------------------------------------------------------------- 
+
+@login_required(login_url='/login/')
+@role_permission_required('role_view')
+def role_list(request):
+    roles = Role.objects.all().order_by('-id')
+    role, permissions, permissions_list = get_role_permissions(request.user)
+    return render(request, 'role/role_list.html', {'roles':roles, 'permissions':permissions, 'permissions_list':permissions_list})
+
+
+
+@login_required(login_url='/login/')
+@role_permission_required('role_create')
+def role_create(request):
+    if request.method == "POST":
+        form = RoleForm(request.POST)
+        if form.is_valid():
+            form.save()
+            return redirect('role_list')
+    else:
+        form = RoleForm()
+    # Permissions group & sort by name sequence
+    permissions = Permission.objects.all()
+    grouped_permissions = defaultdict(list)
+    sequence = ['view', 'create', 'update', 'delete']  # desired order
+    for perm in permissions:
+        grouped_permissions[perm.group].append(perm)
+    # Sort each group's permissions according to sequence using 'name'
+    for group, perms in grouped_permissions.items():
+        grouped_permissions[group] = sorted(
+            perms,
+            key=lambda p: next((i for i, s in enumerate(sequence) if s in p.name.lower()), 99))
+    context = {
+        'form': form,
+        'grouped_permissions': dict(grouped_permissions)}
+    return render(request, 'role/role_form.html', context)
+
+
+
+@login_required(login_url='/login/')
+@role_permission_required('role_update')
+def role_update(request, role_id):
+    role_instance = get_object_or_404(Role, id=role_id)
+    if request.method == "POST":
+        form = RoleForm(request.POST, instance=role_instance)
+        if form.is_valid():
+            role = form.save(commit=False)
+            role.save()
+            # Update permissions manually from POST
+            selected_permissions = request.POST.getlist('permissions')
+            role.permissions.set(selected_permissions)  # overwrite existing
+            messages.success(request, "✅ Role updated successfully")
+            return redirect('role_list')
+    else:
+        form = RoleForm(instance=role_instance)
+    # Group all permissions for display, sorted by sequence
+    permissions_all = Permission.objects.all()
+    grouped_permissions = defaultdict(list)
+    sequence = ['view', 'create', 'update', 'delete']
+    for perm in permissions_all:
+        grouped_permissions[perm.group].append(perm)
+    for group, perms in grouped_permissions.items():
+        grouped_permissions[group] = sorted(
+            perms,
+            key=lambda p: next((i for i, s in enumerate(sequence) if s in p.name.lower()), 99)
+        )
+    # Get current user permissions for template control
+    _, permissions, permissions_list = get_role_permissions(request.user)
+    current_perm_ids = set(role_instance.permissions.values_list('id', flat=True))
+    context = {
+        'form': form,
+        'role': role_instance,
+        'grouped_permissions': dict(grouped_permissions),
+        'permissions': permissions,
+        'permissions_list': permissions_list or [],
+        'current_perm_ids': current_perm_ids,  # <- THIS IS REQUIRED
+    }
+    return render(request, 'role/role_form.html', context)
+
+
+@login_required(login_url='/login/')
+def role_delete(request, pk):
+    role = get_object_or_404(Role, pk=pk)
+    if request.method == 'POST':
+        role.delete()
+        messages.success(request, "Role deleted successfully!")
+        return redirect('role_list')
+
+
+# =========================================  Permission List  =====================================
+@login_required(login_url='/login/')
+def permission_list(request):
+    permissions = Permission.objects.all().order_by('-id')
+    return render(request, 'permission/permission_list.html', {'permissions':permissions})
+
+
+@login_required(login_url='/login/')
+@role_permission_required('permission_create')
+def permission_create(request):
+    form = PermissionForm(request.POST or None)
+    if form.is_valid():
+        form.save()
+        return redirect('permission_list')
+    return render(request, 'permission/permission_form.html', {'form':form})

@@ -19,7 +19,9 @@
         <div class="card-body">
             <div class="d-flex justify-content-between align-items-center mb-3">
                 <h3>Supplier Payment List</h3>
+                {% if request.user.is_superuser or 'supplier_payment_create' in permissions_list %}
                 <a href="{% url 'supplier_payment_create' %}" class="btn btn-primary">➕ Add Supplier Payment</a>
+                {% endif %}
             </div>  <hr>
 
             <form method="get" class="d-inline-block mb-4">
@@ -40,7 +42,9 @@
                         <th>Fund</th>
                         <th>Amount</th>
                         <th>Note</th>
+                        {% if permissions_list and 'supplier_payment_update' in permissions_list or permissions_list and 'supplier_payment_delete' in permissions_list %}
                         <th class="text-end">Actions</th>
+                        {% endif %}
                     </tr>
                 </thead>
                 <tbody>
@@ -51,6 +55,7 @@
                         <td>{{ exp.fund.fund_name }}</td>
                         <td>{{ exp.amount }}</td>
                         <td>{{ exp.note|default:"-" }}</td>
+                        {% if permissions_list and 'supplier_payment_update' in permissions_list or permissions_list and 'supplier_payment_delete' in permissions_list %}
                         <td class="text-end">
                             <div class="dropdown">
                                 <button class="btn btn-sm " type="button" data-bs-toggle="dropdown" style="font-size: 22px;">
@@ -58,20 +63,26 @@
                                 </button>
 
                                 <ul class="dropdown-menu dropdown-menu-end">
+                                    {% if permissions_list and 'supplier_payment_update' in permissions_list %}
                                     <li>
                                         <a class="dropdown-item" href="{% url 'payment_update' exp.id %}">
                                             ✏️ Edit
                                         </a>
                                     </li>
+                                    {% endif %}
+                                    {% if permissions_list and 'supplier_payment_delete' in permissions_list %}
+                                     
                                     <li>
                                         <form method="post" action="{% url 'payment_delete' exp.id %}" onsubmit="return confirm('Are you sure you want to delete this Supplier Payment?');">
                                             {% csrf_token %}
                                             <button type="submit" class="dropdown-item text-danger">🗑️ Delete </button>
                                         </form>
                                     </li>
+                                    {% endif %}
                                 </ul>
                             </div>
                         </td>
+                        {% endif %}
                     </tr>
                     {% empty %}
                     <tr>

@@ -244,3 +244,28 @@ class PurchaseReturn(models.Model):
 
     def __str__(self):
         return f"Return {self.product.name} ({self.quantity})"
+    
+
+# -------------------------------   Permission    ---------------------------------------
+class Permission(models.Model):
+    name = models.CharField(max_length=100)
+    group = models.CharField(max_length=100)
+    
+    def __str__(self):
+        return self.name
+    
+    
+class Role(models.Model):
+    name = models.CharField(max_length=100)
+    permissions = models.ManyToManyField(Permission, blank=True)
+    
+    def __str__(self):
+        return self.name
+    
+    
+class UserProfile(models.Model):
+    user = models.OneToOneField(User, on_delete=models.CASCADE)
+    role = models.ForeignKey(Role, on_delete=models.SET_NULL, null=True)
+    
+    def __str__(self):
+        return self.user.username

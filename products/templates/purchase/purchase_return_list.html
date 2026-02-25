@@ -20,9 +20,11 @@
         <div class="card-body">
             <div class="d-flex justify-content-between align-items-center">
                <h3 class="text-dark" style="font-family: 'Roboto', sans-serif;">Product Return List</h3>
+               {% if request.user.is_superuser or 'purchase_return_create' in permissions_list %}
                <a href="{% url 'purchase_return' %}" class="btn btn-primary">
-                   + Add Product
+                   + Add Purchase Return
                </a>
+                {% endif %}
            </div> <hr>
             <form method="get" class="d-inline-block mb-3">
                 <label>Data per page: </label>

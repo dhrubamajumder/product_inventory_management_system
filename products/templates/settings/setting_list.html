@@ -20,9 +20,11 @@
                 
                 <h3 class="mb-0">System Settings</h3>
                 {% if settings %}
+                    {% if permissions_list and 'settings_update' in permissions_list %}
                     <a href="{% url 'settings_update' settings.id %}" class="btn btn-success btn-sm d-flex justify-content-end">
                         <i class="bi bi-pencil"></i> Edit
                     </a>
+                    {% endif %}
                 {% else %}
                     <a href="{% url 'setting_create' %}" class="btn btn-primary btn-sm">
                         <i class="bi bi-plus"></i> Create
